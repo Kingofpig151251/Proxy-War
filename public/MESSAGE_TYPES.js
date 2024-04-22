@@ -1,7 +1,7 @@
-// messageTypes.js
-var MESSAGE_TYPES = {
+// MESSAGE_TYPES.js
+const MESSAGE_TYPES = {
     SET_NAME: 'setName',
-    SET_LABEL: 'setLabel',
+    UPDATA_LABEL: 'updataLabel',
     SET_DISABLED: 'setDisabled',
     SET_DISPLAY: 'setDisplay',
     CHAT_MESSAGE: 'chatMessage',
