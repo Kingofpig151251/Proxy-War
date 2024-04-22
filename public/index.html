@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title id="gameTitle">Proxy War</title>
+  <link id="mainStylesheet" rel="stylesheet" href="styles.css">
+  <script src="http://code.jquery.com/jquery-latest.min.js"></script>
+  <script src="indexScript.js"></script>
+</head>
+
+<body>
+  <video id="backgroundVideoPlayer" autoplay loop muted playsinline>
+    <source id="backgroundVideoSource" src="Wallpaper.mp4" type="video/mp4" />
+  </video>
+  <div id="gameControlPanel">
+    <ul id="gameOutputMessages">
+    </ul>
+    <form id="battleForm" action="">
+      <table id="battleTable">
+        <tr>
+          <td>
+            <label>Funding $:</label>
+          </td>
+          <td>
+            <label id="fundingLabel">0</label>
+          </td>
+        </tr>
+      </table>
+      <label> Investment:</label>
+      <label>Force</label>
+      <input id="forceInput" autocomplete="off" type="number" value="0" />
+      <label>Arms</label>
+      <input id="armsInput" autocomplete="off" type="number" value="0" />
+      <label>Food</label>
+      <input id="foodInput" autocomplete="off" type="number" value="0" />
+      <label></label>
+      <table id="skillRadioButtons">
+        <tr>
+          <td>
+            <label>Skill: </label>
+          </td>
+          <td>
+            <label for="skillRadioNB">NB</label>
+            <input type="radio" id="skillRadioNB" name="radio_skill" value="NB" checked />
+          </td>
+          <td>
+            <label for="skillRadioQE">QE</label>
+            <input type="radio" id="skillRadioQE" name="radio_skill" value="QE" />
+          </td>
+          <td>
+            <label for="skillRadioIC">IC</label>
+            <input type="radio" id="skillRadioIC" name="radio_skill" value="IC" />
+          </td>
+        </tr>
+      </table>
+      <button>Submit</button>
+      <label></label>
+    </form>
+    <form id="messageForm" action="">
+      Name: <input id="nameInput" autocomplete="off" /> :
+      <input id="messageInput" autocomplete="off" />
+      <label></label>
+      <button type="button" id="sendButton">Send</button>
+      <label></label>
+      <button type="button" id="joinGameButton">Join Game</button>
+      <label></label>
+    </form>
+  </div>
+  <div id="gameStatePanel">
+    <table id="stateTable">
+      <label style="display: block; text-align: center; font-weight: bold; font-size: 30px;">
+        STATE
+      </label>
+      <br>
+      <label id="stateLabel" style="display: block; text-align: center; font-weight: bold; font-size: 20px;">
+        waiting for guest
+      </label>
+      <br>
+      <label style="display: block; text-align: center; font-weight: bold; font-size: 16px;">
+        Player Queue:
+      </label>
+      <ul style="display: block; text-align: center" id="playerQueueList"></ul>
+    </table>
+  </div>
+</body>
+
+</html>

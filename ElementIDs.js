@@ -1,0 +1,29 @@
+class ElementIDs {
+    static GAME_TITLE = 'gameTitle';
+    static MAIN_STYLESHEET = 'mainStylesheet';
+    static JQUERY_SCRIPT = 'jqueryScript';
+    static INDEX_SCRIPT = 'indexScript';
+    static BACKGROUND_VIDEO_PLAYER = 'backgroundVideoPlayer';
+    static BACKGROUND_VIDEO_SOURCE = 'backgroundVideoSource';
+    static GAME_CONTROL_PANEL = 'gameControlPanel';
+    static GAME_OUTPUT_MESSAGES = 'gameOutputMessages';
+    static BATTLE_FORM = 'battleForm';
+    static BATTLE_TABLE = 'battleTable';
+    static FUNDING_LABEL = 'fundingLabel';
+    static FORCE_INPUT = 'forceInput';
+    static ARMS_INPUT = 'armsInput';
+    static FOOD_INPUT = 'foodInput';
+    static SKILL_RADIO_BUTTONS = 'skillRadioButtons';
+    static SKILL_RADIO_NB = 'skillRadioNB';
+    static SKILL_RADIO_QE = 'skillRadioQE';
+    static SKILL_RADIO_IC = 'skillRadioIC';
+    static MESSAGE_FORM = 'messageForm';
+    static NAME_INPUT = 'nameInput';
+    static MESSAGE_INPUT = 'messageInput';
+    static SEND_BUTTON = 'sendButton';
+    static JOIN_GAME_BUTTON = 'joinGameButton';
+    static GAME_STATE_PANEL = 'gameStatePanel';
+    static STATE_TABLE = 'stateTable';
+    static STATE_LABEL = 'stateLabel';
+    static PLAYER_QUEUE_LIST = 'playerQueueList';
+}
