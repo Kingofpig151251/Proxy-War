@@ -6,5 +6,4 @@ class Troop {
     this.skill = skill;
   }
 }
-
 module.exports = Troop;
