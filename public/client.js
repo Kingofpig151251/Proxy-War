@@ -43,7 +43,6 @@ $(() => {
         }
     }
 
-
     let ws = new WebSocket(`ws://${location.host}`);
 
     init();
@@ -53,15 +52,19 @@ $(() => {
     ws.onmessage = function (event) {
 
         var data = JSON.parse(event.data);
-
+        console.log('received', data);
         switch (data.type) {
             case MESSAGE_TYPES.SET_NAME:
                 Elements.Inputs.nameInput.disabled = true;
                 Elements.Inputs.messageInput.disabled = false;
                 Elements.Buttons.joinGameButton.disabled = false;
                 break;
-            case MESSAGE_TYPES.SET_LABEL:
-                setLabel(data);
+            case MESSAGE_TYPES.UPDATA_LABEL:
+                stateLabel.innerHTML = data.value.state;
+                roundLabel.innerHTML = data.value.round;
+                hostNameLabel.innerHTML = data.value.hostName;
+                guestNameLabel.innerHTML = data.value.guestName;
+                fundingLabel.innerHTML = data.value.funding;
                 break;
             case MESSAGE_TYPES.SET_DISABLED:
                 break;
@@ -102,25 +105,6 @@ $(() => {
     function send(data) {
         ws.send(JSON.stringify(data));
         console.log('sent', data);
-    }
-
-    function setLabel(data) {
-        switch (data.Element_ID) {
-            case Element_ID.Battle.fundingLabel:
-                break;
-            case Element_ID.State.label:
-                break;
-            case Element_ID.Game.roundLabel:
-                break;
-            case Element_ID.Player.hostNameLabel:
-                hostNameLabel.innerHTML = data.message;
-                break;
-            case Element_ID.Player.guestNameLabel:
-                guestNameLabel.innerHTML = data.message;
-                break;
-            default:
-                console.log('Unknown label type', data.label);
-        }
     }
 
     function setupListeners() {

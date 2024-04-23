@@ -1,4 +1,7 @@
 // server.js
+//http://localhost:8080
+'use strict';
+
 const WebSocket = require('ws');
 const http = require('http');
 const express = require('express');
@@ -23,10 +26,12 @@ const STATE = {
 let wattingList = [];
 let host, guest, hostTroop, guestTroop;
 let state = STATE.MATCHING;
-let round = 1;
+let round = 0;
+
 wss.on('connection', (ws) => {
 
   ws.on('message', (message) => {
+
     var jsonObj = JSON.parse(message);
     if (jsonObj.message === '') {
       return;
@@ -73,44 +78,21 @@ wss.on('connection', (ws) => {
       default:
         console.log('Unknown message type', type);
     }
+
+    updateLabel();
+
   });
 
   ws.on('close', () => {
-    //if the host disconnects, set the host to null
-    if (host === ws) {
-      host = null;
-      //if wattingList is not empty, set the first player in the list to the host
-      if (wattingList.length > 0) {
-        host = wattingList.shift();
-        host.send(JSON.stringify({
-          type: MESSAGE_TYPES.SYSTEM_MESSAGE,
-          message: 'You are the host.'
-        }));
-        host.send(JSON.stringify({
-          type: MESSAGE_TYPES.UPDATA_LABEL,
-          Element_ID: Element_ID.Labels.hostNameLabel,
-          message: host.name
-        }));
-      }
-    }
-    //if the guest disconnects, set the guest to null
-    if (guest === ws) {
-      guest = null;
-      //if wattingList is not empty, set the first player in the list to the guest
-      if (wattingList.length > 0) {
-        guest = wattingList.shift();
-        guest.send(JSON.stringify({
-          type: MESSAGE_TYPES.SYSTEM_MESSAGE,
-          message: 'You are the guest.'
-        }));
-        guest.send(JSON.stringify({
-          type: MESSAGE_TYPES.UPDATA_LABEL,
-          Element_ID: Element_ID.Labels.guestNameLabel,
-          message: guest.name
-        }));
-      }
-    }
+    // broadcast who are disconnected
+    broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${ws.name} has disconnected.`);
+
+    updateLabel();
+
   });
+
+  updateLabel();
+
 });
 
 function startGame() {
@@ -135,13 +117,32 @@ function broadcastMessage(type, message) {
   });
 }
 
-function updataLabel(Element_ID, message) {
-  wss.clients.forEach((client) => {
-    client.send(JSON.stringify({
+
+function returnFunding(client) {
+  if (hostTroop !== undefined && guestTroop !== undefined) {
+    if (client === host) return hostTroop.funding;
+    if (client === guest) return guestTroop.funding;
+    return 0;
+  }
+  return 0;
+}
+
+function updateLabel() {
+  wss.clients.forEach(client => {
+    const hostName = host ? host.name : 'Waiting';
+    const guestName = guest ? guest.name : 'Waiting';
+    const data = JSON.stringify({
       type: MESSAGE_TYPES.UPDATA_LABEL,
-      Element_ID: Element_ID,
-      message: message
-    }));
+      value: {
+        state: state,
+        round: round,
+        hostName: hostName,
+        guestName: guestName,
+        funding: returnFunding(client)
+      }
+    });
+
+    client.send(data);
   });
 }
 
