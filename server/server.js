@@ -12,6 +12,7 @@ const Element_ID = require('../public/Element_ID');
 const Troop = require('./Troop');
 const path = require('path');
 const e = require('express');
+const { type } = require('os');
 
 app.use(express.static(path.join(__dirname, '../public')));
 
@@ -37,12 +38,16 @@ wss.on('connection', (ws) => {
     }
     switch (jsonObj.type) {
       case MESSAGE_TYPES.JOIN_GAME:
-        if (!host) {
+
+        if (!host && ws !== guest) {
           host = ws;
-        } else if (!guest) {
+        } else if (!guest && ws !== host) {
           guest = ws;
-        } else {
+        } else if (!wattingList.includes(ws) && ws !== host && ws !== guest) {
           wattingList.push(ws);
+        } else {
+          ws.send(JSON.stringify({ type: MESSAGE_TYPES.SYSTEM_MESSAGE, message: 'You are already in the game.' }));
+          return;
         }
         broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${ws.name} has joined the game.`);
         break;
@@ -78,7 +83,11 @@ wss.on('connection', (ws) => {
         console.log('Unknown message type', type);
     }
 
+    if (host && guest && state === STATE.MATCHING) {
+      startGame();
+    }
     updateLabel();
+    updataWaitingList();
 
   });
 
@@ -86,11 +95,16 @@ wss.on('connection', (ws) => {
     // broadcast who are disconnected
     broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${ws.name} has disconnected.`);
 
+    if (host && guest && state === STATE.MATCHING) {
+      startGame();
+    }
     updateLabel();
+    updataWaitingList();
 
   });
 
   updateLabel();
+  updataWaitingList();
 
 });
 
@@ -139,6 +153,28 @@ function updateLabel() {
         guestName: guestName,
         funding: returnFunding(client),
       },
+    });
+    client.send(data);
+  });
+}
+
+function updataWaitingList() {
+  clearWaitingList();
+  wss.clients.forEach(client => {
+    for (let name of wattingList) {
+      const data = JSON.stringify({
+        type: MESSAGE_TYPES.UPDATA_WAITING_LIST,
+        value: name.name,
+      });
+      client.send(data);
+    }
+  });
+}
+
+function clearWaitingList() {
+  wss.clients.forEach(client => {
+    const data = JSON.stringify({
+      type: MESSAGE_TYPES.CLEAR_WAITTING_LIST,
     });
     client.send(data);
   });

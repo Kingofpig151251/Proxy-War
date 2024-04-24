@@ -3,7 +3,6 @@ const MESSAGE_TYPES = {
     SET_NAME: 'setName',
     UPDATA_LABEL: 'updataLabel',
     UPDATA_WAITING_LIST: 'updataWaitingList',
-    CLEAR_WAITTING_LIST: 'clearWaitingList',
     SET_DISABLED: 'setDisabled',
     SET_DISPLAY: 'setDisplay',
     CHAT_MESSAGE: 'chatMessage',

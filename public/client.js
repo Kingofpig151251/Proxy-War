@@ -67,9 +67,7 @@ $(() => {
                 fundingLabel.innerHTML = data.value.funding;
                 break;
             case MESSAGE_TYPES.UPDATA_WAITING_LIST:
-                for (let name of data.value) {
-                    waitingList.innerHTML += `<li>${name}</li>`;
-                }
+                waitingList.innerHTML += `<ul>${data.value}</ul>`;
                 break;
             case MESSAGE_TYPES.CLEAR_WAITTING_LIST:
                 waitingList.innerHTML = '';
