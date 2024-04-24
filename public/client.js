@@ -66,6 +66,13 @@ $(() => {
                 guestNameLabel.innerHTML = data.value.guestName;
                 fundingLabel.innerHTML = data.value.funding;
                 break;
+            case MESSAGE_TYPES.UPDATA_WAITING_LIST:
+                for (let name of data.value) {
+                    waitingList.innerHTML += `<li>${name}</li>`;
+                }
+                break;
+            case MESSAGE_TYPES.CLEAR_WAITTING_LIST:
+                waitingList.innerHTML = '';
             case MESSAGE_TYPES.SET_DISABLED:
                 break;
             case MESSAGE_TYPES.CHAT_MESSAGE:

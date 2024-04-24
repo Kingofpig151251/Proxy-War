@@ -1,5 +1,4 @@
 // server.js
-//http://localhost:8080
 'use strict';
 
 const WebSocket = require('ws');
@@ -138,10 +137,9 @@ function updateLabel() {
         round: round,
         hostName: hostName,
         guestName: guestName,
-        funding: returnFunding(client)
-      }
+        funding: returnFunding(client),
+      },
     });
-
     client.send(data);
   });
 }
