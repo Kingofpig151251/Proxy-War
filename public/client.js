@@ -114,6 +114,7 @@ $(() => {
     function setupListeners() {
         //set up the listeners for all the buttons
         joinGameButton.addEventListener('click', (e) => {
+            e.preventDefault();
             send({ type: MESSAGE_TYPES.JOIN_GAME, message: nameInput.value });
         });
 

@@ -13,7 +13,7 @@ class Troop {
     let force = Number(message.force);
     let arms = Number(message.arms);
     let food = Number(message.food);
-    let skill = Number(message.skill);
+    let skill = message.skill;
     if (isNaN(force) || isNaN(arms) || isNaN(food)) {
       throw new Error('Force, arms, and food must be numeric values.');
     }

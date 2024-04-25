@@ -11,9 +11,10 @@ const wss = new WebSocket.Server({ server });
 const MESSAGE_TYPES = require('../public/MESSAGE_TYPES');
 const Element_ID = require('../public/Element_ID');
 const Troop = require('./Troop');
-const path = require('path');
 const { type } = require('os');
-app.use(express.static(path.join(__dirname, '../public')));
+app.use(express.static('public'));
+const opn = require('opn');
+const e = require('express');
 //#endregion
 
 const STATE = {
@@ -79,6 +80,7 @@ wss.on('connection', (ws) => {
         if (ws === host && state === STATE.HOST_TURN) {
           try {
             hostTroop.updateFromBattleMessage(jsonObj);
+            broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${hostTroop.name} has finished the turn, the amount invested is ${hostTroop.force + hostTroop.arms + hostTroop.food}`);
             state = STATE.GUEST_TURN;
           } catch (error) {
             ws.send(JSON.stringify({ type: MESSAGE_TYPES.SYSTEM_MESSAGE, message: error.message }));
@@ -86,6 +88,8 @@ wss.on('connection', (ws) => {
         } else if (ws === guest && state === STATE.GUEST_TURN) {
           try {
             guestTroop.updateFromBattleMessage(jsonObj);
+            broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${guestTroop.name} has finished the turn, the amount invested is ${guestTroop.force + guestTroop.arms + guestTroop.food}`);
+            compare(hostTroop, guestTroop);
             state = STATE.HOST_TURN;
             round++;
           } catch (error) {
@@ -187,22 +191,15 @@ function startGame() {
   hostTroop = new Troop(host.name, 100);
   guestTroop = new Troop(guest.name, 90);
   //send ready to battle message all clients
-  wss.clients.forEach((client) => {
-    client.send(JSON.stringify({
-      type: MESSAGE_TYPES.SYSTEM_MESSAGE,
-      message: `${host.name} and ${guest.name} are in battle.`
-    }));
-  });
+  broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${host.name} and ${guest.name} are in battle.`);
   state = STATE.HOST_TURN;
   round = 1;
 }
 
 function setDisabled() {
-  wss.clients.forEach((client) => {
-    client.send(JSON.stringify({
-      type: MESSAGE_TYPES.SET_DISABLED,
-      value: true
-    }));
+  wss.clients.forEach(client => {
+    const data = JSON.stringify({ type: MESSAGE_TYPES.SET_DISABLED, value: true });
+    client.send(data);
   });
   switch (state) {
     case STATE.HOST_TURN:
@@ -212,28 +209,54 @@ function setDisabled() {
       guest.send(JSON.stringify({ type: MESSAGE_TYPES.SET_DISABLED, value: false }));
       break;
   }
+  broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `Now is ${state}.`);
 }
 
 function compare(hostTroop, guestTroop) {
   let hostTotal = hostTroop.force + hostTroop.arms + hostTroop.food;
   let guestTotal = guestTroop.force + guestTroop.arms + guestTroop.food;
-  let hostWanAttributes = 0;
+  let hostWinAttributes = 0;
   let guestWanAttributes = 0;
+  let winMsg;
+
   if (hostTroop.force > guestTroop.force) {
-    hostWanAttributes++;
+    hostWinAttributes++;
+    winMsg = `${hostTroop.name} wins the force battle.`;
   } else if (hostTroop.force < guestTroop.force) {
     guestWanAttributes++;
+    winMsg = `${guestTroop.name} wins the force battle.`;
+  } else {
+    winMsg = `Force battle is draw.`;
   }
+  broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${host.name} :${hostTroop.force}  `);
+  broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${guest.name} :${guestTroop.force}  `);
+  broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${winMsg} `);
+
   if (hostTroop.arms > guestTroop.arms) {
-    hostWanAttributes++;
+    hostWinAttributes++;
+    winMsg = `${hostTroop.name} wins the arms battle.`;
   } else if (hostTroop.arms < guestTroop.arms) {
     guestWanAttributes++;
+    winMsg = `${guestTroop.name} wins the arms battle.`;
+  } else {
+    winMsg = `Arms battle is draw.`;
   }
+  broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${host.name} :${hostTroop.arms}  `);
+  broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${guest.name} :${guestTroop.arms}  `);
+  broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${winMsg} `);
+
   if (hostTroop.food > guestTroop.food) {
-    hostWanAttributes++;
+    hostWinAttributes++;
+    winMsg = `${hostTroop.name} wins the food battle.`;
   } else if (hostTroop.food < guestTroop.food) {
     guestWanAttributes++;
+    winMsg = `${guestTroop.name} wins the food battle.`;
+  } else {
+    winMsg = `Food battle is draw.`;
   }
+  broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${host.name} :${hostTroop.food}  `);
+  broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${guest.name} :${guestTroop.food}  `);
+  broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${winMsg} `);
 
   //check host skill
   switch (hostTroop.skill) {
@@ -241,7 +264,7 @@ function compare(hostTroop, guestTroop) {
       hostTotal += hostTroop.funding;
       break;
     case 'QE':
-      hostWanAttributes = hostWanAttributes <= 3 ? hostWanAttributes++ : hostWanAttributes;
+      hostWinAttributes = hostWinAttributes <= 3 ? hostWinAttributes++ : hostWinAttributes;
       break;
   }
 
@@ -250,7 +273,7 @@ function compare(hostTroop, guestTroop) {
       guestTotal += guestTroop.funding;
       break;
     case 'QE':
-      guestWanAttributes = guestWanAttributes = guestWanAttributes <= 3 ? guestWanAttributes++ : hostWanAttributes;
+      guestWanAttributes = guestWanAttributes <= 3 ? guestWanAttributes++ : hostWinAttributes;
       break;
   }
 
@@ -261,13 +284,21 @@ function compare(hostTroop, guestTroop) {
   }
 
   if (guestTroop.skill === 'IC') {
-    hostTotal = hostTotal * hostWanAttributes * 0.5;
-
+    hostTotal = hostTotal * hostWinAttributes * 0.5;
   } else {
-    hostTotal = hostTotal * hostWanAttributes;
+    hostTotal = hostTotal * hostWinAttributes;
   }
+
+  hostTroop.funding += hostTotal;
+  guestTroop.funding += guestTotal;
+  broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `Settlement income.`);
+  broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${hostTroop.name} win ${hostWinAttributes} .`);
+  broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${guestTroop.name} has ${guestTroop.funding} funding left.`);
+
 }
 
 server.listen(8080, () => {
   console.log('Listening on http://localhost:8080');
+  opn('http://localhost:8080');
+  opn('http://localhost:8080');
 });
