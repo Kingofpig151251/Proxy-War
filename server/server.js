@@ -31,14 +31,13 @@ let round = 0;
 wss.on('connection', (ws) => {
 
   ws.on('message', (message) => {
-
     var jsonObj = JSON.parse(message);
+    console.log('received', jsonObj);
     if (jsonObj.message === '') {
       return;
     }
     switch (jsonObj.type) {
       case MESSAGE_TYPES.JOIN_GAME:
-
         if (!host && ws !== guest) {
           host = ws;
         } else if (!guest && ws !== host) {
@@ -78,6 +77,14 @@ wss.on('connection', (ws) => {
         });
         break;
       case MESSAGE_TYPES.BATTLE:
+        if (ws === host && state === STATE.HOST_TURN) {
+          try {
+            hostTroop.updateFromBattleMessage(jsonObj.message);
+            state = STATE.GUEST_TURN;
+          } catch (error) {
+            ws.send(JSON.stringify({ type: MESSAGE_TYPES.SYSTEM_MESSAGE, message: error.message }));
+          }
+        }
         break;
       default:
         console.log('Unknown message type', type);
@@ -86,9 +93,11 @@ wss.on('connection', (ws) => {
     if (host && guest && state === STATE.MATCHING) {
       startGame();
     }
+    if (host && guest) {
+      setDisabled();
+    }
     updateLabel();
     updataWaitingList();
-
   });
 
   ws.on('close', () => {
@@ -98,28 +107,16 @@ wss.on('connection', (ws) => {
     if (host && guest && state === STATE.MATCHING) {
       startGame();
     }
+    if (host && guest) {
+      setDisabled();
+    }
     updateLabel();
     updataWaitingList();
-
   });
-
   updateLabel();
   updataWaitingList();
-
 });
 
-function startGame() {
-  hostTroop = new Troop();
-  guestTroop = new Troop();
-  //send ready to battle message all clients
-  wss.clients.forEach((client) => {
-    client.send(JSON.stringify({
-      type: MESSAGE_TYPES.SYSTEM_MESSAGE,
-      message: `${host.name} and ${guest.name} are in battle.`
-    }));
-  });
-  state = STATE.HOST_TURN;
-}
 
 function broadcastMessage(type, message) {
   wss.clients.forEach((client) => {
@@ -129,7 +126,6 @@ function broadcastMessage(type, message) {
     }));
   });
 }
-
 
 function returnFunding(client) {
   if (hostTroop !== undefined && guestTroop !== undefined) {
@@ -178,6 +174,38 @@ function clearWaitingList() {
     });
     client.send(data);
   });
+}
+
+function startGame() {
+  hostTroop = new Troop(host.name, 100);
+  guestTroop = new Troop(guest.name, 100);
+  //send ready to battle message all clients
+  wss.clients.forEach((client) => {
+    client.send(JSON.stringify({
+      type: MESSAGE_TYPES.SYSTEM_MESSAGE,
+      message: `${host.name} and ${guest.name} are in battle.`
+    }));
+  });
+  state = STATE.HOST_TURN;
+  round = 1;
+}
+
+function setDisabled() {
+  wss.clients.forEach((client) => {
+    client.send(JSON.stringify({
+      type: MESSAGE_TYPES.SET_DISABLED,
+      value: true
+    }));
+  });
+  switch (state) {
+    case STATE.HOST_TURN:
+      host.send(JSON.stringify({ type: MESSAGE_TYPES.SET_DISABLED, value: false }));
+      break;
+    case STATE.GUEST_TURN:
+      guest.send(JSON.stringify({ type: MESSAGE_TYPES.SET_DISABLED, value: false }));
+      break;
+  }
+
 }
 
 server.listen(8080, () => {

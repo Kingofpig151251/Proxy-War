@@ -71,7 +71,11 @@ $(() => {
                 break;
             case MESSAGE_TYPES.CLEAR_WAITTING_LIST:
                 waitingList.innerHTML = '';
+                break;
             case MESSAGE_TYPES.SET_DISABLED:
+                for (let element of battleForm.elements) {
+                    element.disabled = data.value;
+                }
                 break;
             case MESSAGE_TYPES.CHAT_MESSAGE:
                 //add the message to the gameOutputMessages list
@@ -85,16 +89,11 @@ $(() => {
                 break;
             case MESSAGE_TYPES.JOIN_GAME:
                 break;
-            case MESSAGE_TYPES.START_GAME:
-                //enable the battle form
-                for (let element of battleForm.elements) {
-                    element.disabled = false;
-                }
-                break;
             case MESSAGE_TYPES.BATTLE:
                 break;
             default:
                 console.log('Unknown message type', type);
+                break;
         }
     }
 
@@ -137,7 +136,14 @@ $(() => {
 
         battleForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            send({ type: MESSAGE_TYPES.BATTLE, force: forceInput.value, arms: armsInput.value, food: foodInput.value, skill: selectedRadioButton.value });
+            let selectedSkill = document.querySelector('input[name="radio_skill"]:checked').value;
+            send({
+                type: MESSAGE_TYPES.BATTLE,
+                force: forceInput.value,
+                arms: armsInput.value,
+                food: foodInput.value,
+                skill: selectedSkill,
+            });
         });
     }
 });
