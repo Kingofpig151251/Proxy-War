@@ -34,11 +34,11 @@
 	玩家B的金錢會增加0元, 再加上剩下的100元 = 100元
 	由此可見, 合理和積極的投資是獲勝的關鍵
 
-國債 National Debt(NB)
+    國債 National Debt(NB)
 	會把剩下的金錢算入結算倍率內
 
 	量化寬鬆 Quantitative Easing(QE)
-	自己投資的屬性數字變兩倍,無視正負
+	保證結算倍率有1,最多不超過3
 
 	貨幣干預 Intervention Currency (IC)
 	對手的結算少50%

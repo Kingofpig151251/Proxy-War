@@ -214,7 +214,59 @@ function setDisabled() {
   }
 }
 
+function compare(hostTroop, guestTroop) {
+  let hostTotal = hostTroop.force + hostTroop.arms + hostTroop.food;
+  let guestTotal = guestTroop.force + guestTroop.arms + guestTroop.food;
+  let hostWanAttributes = 0;
+  let guestWanAttributes = 0;
+  if (hostTroop.force > guestTroop.force) {
+    hostWanAttributes++;
+  } else if (hostTroop.force < guestTroop.force) {
+    guestWanAttributes++;
+  }
+  if (hostTroop.arms > guestTroop.arms) {
+    hostWanAttributes++;
+  } else if (hostTroop.arms < guestTroop.arms) {
+    guestWanAttributes++;
+  }
+  if (hostTroop.food > guestTroop.food) {
+    hostWanAttributes++;
+  } else if (hostTroop.food < guestTroop.food) {
+    guestWanAttributes++;
+  }
 
+  //check host skill
+  switch (hostTroop.skill) {
+    case 'NB':
+      hostTotal += hostTroop.funding;
+      break;
+    case 'QE':
+      hostWanAttributes = hostWanAttributes <= 3 ? hostWanAttributes++ : hostWanAttributes;
+      break;
+  }
+
+  switch (guestTroop.skill) {
+    case 'NB':
+      guestTotal += guestTroop.funding;
+      break;
+    case 'QE':
+      guestWanAttributes = guestWanAttributes = guestWanAttributes <= 3 ? guestWanAttributes++ : hostWanAttributes;
+      break;
+  }
+
+  if (hostTroop.skill === 'IC') {
+    guestTotal = guestTotal * guestWanAttributes * 0.5;
+  } else {
+    guestTotal = guestTotal * guestWanAttributes;
+  }
+
+  if (guestTroop.skill === 'IC') {
+    hostTotal = hostTotal * hostWanAttributes * 0.5;
+
+  } else {
+    hostTotal = hostTotal * hostWanAttributes;
+  }
+}
 
 server.listen(8080, () => {
   console.log('Listening on http://localhost:8080');
