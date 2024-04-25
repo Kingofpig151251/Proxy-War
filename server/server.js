@@ -1,6 +1,7 @@
 // server.js
 'use strict';
 
+//#region Imports
 const WebSocket = require('ws');
 const http = require('http');
 const express = require('express');
@@ -11,16 +12,14 @@ const MESSAGE_TYPES = require('../public/MESSAGE_TYPES');
 const Element_ID = require('../public/Element_ID');
 const Troop = require('./Troop');
 const path = require('path');
-const e = require('express');
 const { type } = require('os');
-
 app.use(express.static(path.join(__dirname, '../public')));
+//#endregion
 
 const STATE = {
   MATCHING: 'Matching',
   HOST_TURN: 'Host Turn',
   GUEST_TURN: 'Guest Turn',
-  SETTLING: 'Settling'
 }
 
 let wattingList = [];
@@ -79,8 +78,16 @@ wss.on('connection', (ws) => {
       case MESSAGE_TYPES.BATTLE:
         if (ws === host && state === STATE.HOST_TURN) {
           try {
-            hostTroop.updateFromBattleMessage(jsonObj.message);
+            hostTroop.updateFromBattleMessage(jsonObj);
             state = STATE.GUEST_TURN;
+          } catch (error) {
+            ws.send(JSON.stringify({ type: MESSAGE_TYPES.SYSTEM_MESSAGE, message: error.message }));
+          }
+        } else if (ws === guest && state === STATE.GUEST_TURN) {
+          try {
+            guestTroop.updateFromBattleMessage(jsonObj);
+            state = STATE.HOST_TURN;
+            round++;
           } catch (error) {
             ws.send(JSON.stringify({ type: MESSAGE_TYPES.SYSTEM_MESSAGE, message: error.message }));
           }
@@ -178,7 +185,7 @@ function clearWaitingList() {
 
 function startGame() {
   hostTroop = new Troop(host.name, 100);
-  guestTroop = new Troop(guest.name, 100);
+  guestTroop = new Troop(guest.name, 90);
   //send ready to battle message all clients
   wss.clients.forEach((client) => {
     client.send(JSON.stringify({
@@ -205,8 +212,9 @@ function setDisabled() {
       guest.send(JSON.stringify({ type: MESSAGE_TYPES.SET_DISABLED, value: false }));
       break;
   }
-
 }
+
+
 
 server.listen(8080, () => {
   console.log('Listening on http://localhost:8080');

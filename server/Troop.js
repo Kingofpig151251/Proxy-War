@@ -9,15 +9,14 @@ class Troop {
   }
 
   updateFromBattleMessage(message) {
-    let { force, arms, food, skill } = message;
-
     // Convert to numbers and check for non-numeric values
-    force = Number(force);
-    arms = Number(arms);
-    food = Number(food);
+    let force = Number(message.force);
+    let arms = Number(message.arms);
+    let food = Number(message.food);
     if (isNaN(force) || isNaN(arms) || isNaN(food)) {
       throw new Error('Force, arms, and food must be numeric values.');
     }
+
 
     // Check if the total does not exceed the funding
     if (force + arms + food > this.funding) {
@@ -28,6 +27,36 @@ class Troop {
     this.force = force;
     this.arms = arms;
     this.food = food;
-    this.skill = skill;
+    this.funding -= force + arms + food;
+
+    //if successful, consloe log the values
+    console.log('Force:', this.force);
+    console.log('Arms:', this.arms);
+    console.log('Food:', this.food);
+    console.log('Skill:', this.skill);
   }
+
+  //遂項比較兩個軍隊的戰力
+  compareForce(otherTroop) {
+    if (this.force > otherTroop.force) {
+      return 1;
+    } else if (this.force < otherTroop.force) {
+      return -1;
+    } else {
+      return 0;
+    }
+  }
+
+  //遂項比較兩個軍隊的武器
+  compareArms(otherTroop) {
+    if (this.arms > otherTroop.arms) {
+      return 1;
+    } else if (this.arms < otherTroop.arms) {
+      return -1;
+    } else {
+      return 0;
+    }
+  }
+
 }
+module.exports = Troop;
