@@ -5,6 +5,7 @@ class Troop {
     this.force = 0;
     this.arms = 0;
     this.food = 0;
+    this.winAttributes = 0;
     this.skill = '';
   }
 
