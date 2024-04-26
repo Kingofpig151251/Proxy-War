@@ -106,7 +106,7 @@ wss.on('connection', (ws) => {
       default:
         console.log('Unknown message type', type);
     }
-
+    addPlayerToBattle();
     if (host && guest && state === STATE.MATCHING) {
       startGame();
     }
@@ -120,7 +120,17 @@ wss.on('connection', (ws) => {
   ws.on('close', async () => {
     // broadcast who are disconnected
     broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${ws.name} has disconnected.`);
-
+    addPlayerToBattle();
+    if (state === STATE.BATTLING) {
+      if (host === ws) {
+        broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${host.name} has escaped. ${guest.name} win the game.`);
+        host = null;
+      }
+      if (guest === ws) {
+        broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${guest.name} has escaped. ${host.name} win the game.`);
+        guest = null;
+      }
+    }
     if (host && guest && state === STATE.MATCHING) {
       startGame();
     }
@@ -261,13 +271,12 @@ async function compare(hostTroop, guestTroop) {
   await delayBroadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${hostTroop.name} get ${hostTotal} income.`);
   await delayBroadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${guestTroop.name} get ${guestTotal} income,`);
 
-
   if (hostTroop.winAttributes != 0) {
     hostTroop.funding += hostTotal;
   } else {
     hostTroop.funding = hostTroop.funding;
   }
-  
+
   if (guestTroop.winAttributes != 0) {
     guestTroop.funding += guestTotal;
   } else {
@@ -275,6 +284,36 @@ async function compare(hostTroop, guestTroop) {
   }
   round++;
   state = STATE.HOST_TURN;
+  await checkWhoWin();
+}
+
+async function checkWhoWin() {
+  if (round === 3) {
+    if (hostTroop.funding > guestTroop.funding) {
+      broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${hostTroop.name} win the game.`);
+    } else if (hostTroop.funding < guestTroop.funding) {
+      broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${guestTroop.name} win the game.`);
+    } else {
+      broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `No one win the game.`);
+    }
+    host = null;
+    guest = null;
+    hostTroop = null;
+    guestTroop = null;
+    round = 0;
+    state = STATE.MATCHING;
+  }
+}
+
+// if host is null, set the waitting list player to host, if guest is null, set the second player to guest
+function addPlayerToBattle() {
+  if (wattingList.length === 0) return;
+  if (host === null) {
+    host = wattingList.shift();
+  }
+  if (guest === null) {
+    guest = wattingList.shift();
+  }
 }
 
 async function delayBroadcastMessage(type, message) {

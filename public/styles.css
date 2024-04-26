@@ -7,6 +7,7 @@
     --button-background: #496773;
     --border-color: rgba(73, 103, 115);
 }
+
 * {
     margin: 0;
     padding: 0;
@@ -14,9 +15,11 @@
     color: var(--main-font-color);
     font-family: "Courier New", Courier, monospace;
 }
+
 body {
     font: 13px Helvetica, Arial;
 }
+
 #backgroundVideoPlayer {
     position: fixed;
     right: 0;
@@ -26,20 +29,26 @@ body {
     object-fit: cover;
     z-index: -1;
 }
+
 #gameOutputMessages,
 #playerQueueList {
+    padding-bottom: 55px;
     list-style-type: none;
 }
+
 #gameOutputMessages li {
     padding: 5px 10px;
     color: var(--main-font-color);
 }
+
 #gameOutputMessages li:nth-child(even) {
     background: var(--background-color-even);
 }
+
 #gameOutputMessages li:nth-child(odd) {
     background: var(--background-color-odd);
 }
+
 #battleForm,
 #messageForm {
     position: fixed;
@@ -49,12 +58,15 @@ body {
     background: #273940;
     display: flex;
 }
+
 #battleForm {
     bottom: 25px;
 }
+
 #messageForm {
     bottom: 0px;
 }
+
 input {
     width: 10%;
     border: 0;
@@ -62,9 +74,11 @@ input {
     color: var(--main-font-color);
     background: var(--input-background);
 }
+
 #messageInput {
     width: 70%;
 }
+
 button {
     width: 10%;
     padding: 3px;
@@ -73,18 +87,22 @@ button {
     border: none;
     margin-left: auto;
 }
+
 input[type="radio"] {
     width: 10px;
     height: 10px;
 }
+
 label,
 input {
     margin-left: 10px;
 }
+
 form {
     display: flex;
     align-items: center;
 }
+
 table,
 td {
     border: 3px solid var(--border-color);
@@ -92,11 +110,13 @@ td {
     padding-left: 10px;
     padding-right: 10px;
 }
+
 #gameControlPanel,
 #battleForm,
 #messageForm {
     width: 80%;
 }
+
 #gameStatePanel {
     position: fixed;
     right: 0;
