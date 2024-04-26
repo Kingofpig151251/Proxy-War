@@ -19,13 +19,13 @@ const e = require('express');
 
 const STATE = {
   MATCHING: 'Matching',
-  HOST_TURN: 'Host Turn',
-  GUEST_TURN: 'Guest Turn',
+  ATTACKER_TURN: 'Attacker Turn',
+  DEFENDER_TURN: 'Defender Turn',
   BATTLING: 'Battling',
 }
 
 let wattingList = [];
-let host, guest, hostTroop, guestTroop;
+let attacker, defender, attackerTroop, defenderTroop;
 let state = STATE.MATCHING;
 let round = 0;
 
@@ -42,11 +42,11 @@ wss.on('connection', (ws) => {
     }
     switch (jsonObj.type) {
       case MESSAGE_TYPES.JOIN_GAME:
-        if (!host && ws !== guest) {
-          host = ws;
-        } else if (!guest && ws !== host) {
-          guest = ws;
-        } else if (!wattingList.includes(ws) && ws !== host && ws !== guest) {
+        if (!attacker && ws !== defender) {
+          attacker = ws;
+        } else if (!defender && ws !== attacker) {
+          defender = ws;
+        } else if (!wattingList.includes(ws) && ws !== attacker && ws !== defender) {
           wattingList.push(ws);
         } else {
           ws.send(JSON.stringify({ type: MESSAGE_TYPES.SYSTEM_MESSAGE, message: 'You are already in the game.' }));
@@ -81,22 +81,22 @@ wss.on('connection', (ws) => {
         });
         break;
       case MESSAGE_TYPES.BATTLE:
-        if (ws === host && state === STATE.HOST_TURN) {
+        if (ws === attacker && state === STATE.ATTACKER_TURN) {
           try {
-            hostTroop.updateFromBattleMessage(jsonObj);
-            broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${hostTroop.name} has finished the turn, the amount invested is ${hostTroop.force + hostTroop.arms + hostTroop.food}. With skill ${hostTroop.skill}`);
-            state = STATE.GUEST_TURN;
+            attackerTroop.updateFromBattleMessage(jsonObj);
+            broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${attackerTroop.name} has finished the turn, the amount invested is ${attackerTroop.force + attackerTroop.arms + attackerTroop.food}. With skill ${attackerTroop.skill}`);
+            state = STATE.DEFENDER_TURN;
             broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `Now is ${state}.`);
           } catch (error) {
             ws.send(JSON.stringify({ type: MESSAGE_TYPES.SYSTEM_MESSAGE, message: error.message }));
           }
-        } else if (ws === guest && state === STATE.GUEST_TURN) {
+        } else if (ws === defender && state === STATE.DEFENDER_TURN) {
           try {
-            guestTroop.updateFromBattleMessage(jsonObj);
-            broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${guestTroop.name} has finished the turn, the amount invested is ${guestTroop.force + guestTroop.arms + guestTroop.food}. With skill ${guestTroop.skill}`);
+            defenderTroop.updateFromBattleMessage(jsonObj);
+            broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${defenderTroop.name} has finished the turn, the amount invested is ${defenderTroop.force + defenderTroop.arms + defenderTroop.food}. With skill ${defenderTroop.skill}`);
             state = STATE.BATTLING;
             updateLabel();
-            await compare(hostTroop, guestTroop);
+            await compare(attackerTroop, defenderTroop);
             broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `Now is ${state}.`);
           } catch (error) {
             ws.send(JSON.stringify({ type: MESSAGE_TYPES.SYSTEM_MESSAGE, message: error.message }));
@@ -107,10 +107,10 @@ wss.on('connection', (ws) => {
         console.log('Unknown message type', type);
     }
     addPlayerToBattle();
-    if (host && guest && state === STATE.MATCHING) {
+    if (attacker && defender && state === STATE.MATCHING) {
       startGame();
     }
-    if (host && guest) {
+    if (attacker && defender) {
       setDisabled();
     }
     updateLabel();
@@ -122,19 +122,19 @@ wss.on('connection', (ws) => {
     broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${ws.name} has disconnected.`);
     addPlayerToBattle();
     if (state === STATE.BATTLING) {
-      if (host === ws) {
-        broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${host.name} has escaped. ${guest.name} win the game.`);
-        host = null;
+      if (attacker === ws) {
+        broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${attacker.name} has escaped. ${defender.name} win the game.`);
+        attacker = null;
       }
-      if (guest === ws) {
-        broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${guest.name} has escaped. ${host.name} win the game.`);
-        guest = null;
+      if (defender === ws) {
+        broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${defender.name} has escaped. ${attacker.name} win the game.`);
+        defender = null;
       }
     }
-    if (host && guest && state === STATE.MATCHING) {
+    if (attacker && defender && state === STATE.MATCHING) {
       startGame();
     }
-    if (host && guest) {
+    if (attacker && defender) {
       await setDisabled();
     }
     updateLabel();
@@ -155,9 +155,9 @@ function broadcastMessage(type, message) {
 }
 
 function returnFunding(client) {
-  if (hostTroop !== undefined && guestTroop !== undefined) {
-    if (client === host) return hostTroop.funding;
-    if (client === guest) return guestTroop.funding;
+  if (attackerTroop !== undefined && defenderTroop !== undefined) {
+    if (client === attacker) return attackerTroop.funding;
+    if (client === defender) return defenderTroop.funding;
     return 0;
   }
   return 0;
@@ -165,8 +165,8 @@ function returnFunding(client) {
 
 function updateLabel() {
   wss.clients.forEach(client => {
-    const hostName = host ? host.name : 'Waiting';
-    const guestName = guest ? guest.name : 'Waiting';
+    const hostName = attacker ? attacker.name : 'Waiting';
+    const guestName = defender ? defender.name : 'Waiting';
     const data = JSON.stringify({
       type: MESSAGE_TYPES.UPDATA_LABEL,
       value: {
@@ -204,11 +204,11 @@ function clearWaitingList() {
 }
 
 function startGame() {
-  hostTroop = new Troop(host.name, 100);
-  guestTroop = new Troop(guest.name, 90);
+  attackerTroop = new Troop(attacker.name, 100);
+  defenderTroop = new Troop(defender.name, 90);
   //send ready to battle message all clients
-  broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${host.name}(host) and ${guest.name}(guest) are in battle.`);
-  state = STATE.HOST_TURN;
+  broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${attacker.name}(attacker) and ${defender.name}(defender) are in battle.`);
+  state = STATE.ATTACKER_TURN;
   round = 1;
 }
 
@@ -218,88 +218,88 @@ async function setDisabled() {
     client.send(data);
   });
   switch (state) {
-    case STATE.HOST_TURN:
-      host.send(JSON.stringify({ type: MESSAGE_TYPES.SET_DISABLED, value: false }));
+    case STATE.ATTACKER_TURN:
+      attacker.send(JSON.stringify({ type: MESSAGE_TYPES.SET_DISABLED, value: false }));
       break;
-    case STATE.GUEST_TURN:
-      guest.send(JSON.stringify({ type: MESSAGE_TYPES.SET_DISABLED, value: false }));
+    case STATE.DEFENDER_TURN:
+      defender.send(JSON.stringify({ type: MESSAGE_TYPES.SET_DISABLED, value: false }));
       break;
   }
 }
 
-async function compare(hostTroop, guestTroop) {
-  let hostTotal = hostTroop.force + hostTroop.arms + hostTroop.food;
-  let guestTotal = guestTroop.force + guestTroop.arms + guestTroop.food;
-  hostTroop.winAttributes = 0;
-  guestTroop.winAttributes = 0;
-  await compareAttribute(hostTroop, guestTroop, 'force');
-  await compareAttribute(hostTroop, guestTroop, 'arms');
-  await compareAttribute(hostTroop, guestTroop, 'food');
+async function compare(attackerTroop, defenderTroop) {
+  let attackerTotal = attackerTroop.force + attackerTroop.arms + attackerTroop.food;
+  let defenderTotal = defenderTroop.force + defenderTroop.arms + defenderTroop.food;
+  attackerTroop.winAttributes = 0;
+  defenderTroop.winAttributes = 0;
+  await compareAttribute(attackerTroop, defenderTroop, 'force');
+  await compareAttribute(attackerTroop, defenderTroop, 'arms');
+  await compareAttribute(attackerTroop, defenderTroop, 'food');
 
   //check host skill
-  switch (hostTroop.skill) {
+  switch (attackerTroop.skill) {
     case 'NB':
-      hostTotal += hostTroop.funding;
+      attackerTotal += attackerTroop.funding;
       break;
     case 'QE':
-      hostTroop.winAttributes = hostTroop.winAttributes <= 3 ? hostTroop.winAttributes + 1 : hostTroop.winAttributes;
+      attackerTroop.winAttributes = attackerTroop.winAttributes <= 3 ? attackerTroop.winAttributes + 1 : attackerTroop.winAttributes;
       break;
   }
 
-  switch (guestTroop.skill) {
+  switch (defenderTroop.skill) {
     case 'NB':
-      guestTotal += guestTroop.funding;
+      defenderTotal += defenderTroop.funding;
       break;
     case 'QE':
-      guestTroop.winAttributes = guestTroop.winAttributes <= 3 ? guestTroop.winAttributes + 1 : guestTroop.winAttributes;
+      defenderTroop.winAttributes = defenderTroop.winAttributes <= 3 ? defenderTroop.winAttributes + 1 : defenderTroop.winAttributes;
       break;
   }
 
-  if (hostTroop.skill === 'IC') {
-    guestTotal *= guestTroop.winAttributes * 0.5;
+  if (attackerTroop.skill === 'IC') {
+    defenderTotal *= defenderTroop.winAttributes * 0.5;
   } else {
-    guestTotal *= guestTroop.winAttributes;
+    defenderTotal *= defenderTroop.winAttributes;
   }
 
-  if (guestTroop.skill === 'IC') {
-    hostTotal *= hostTroop.winAttributes * 0.5;
+  if (defenderTroop.skill === 'IC') {
+    attackerTotal *= attackerTroop.winAttributes * 0.5;
   } else {
-    hostTotal *= hostTroop.winAttributes;
+    attackerTotal *= attackerTroop.winAttributes;
   }
 
   await delayBroadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `Settlement incoming...`);
-  await delayBroadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${hostTroop.name} get ${hostTotal} income.`);
-  await delayBroadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${guestTroop.name} get ${guestTotal} income,`);
+  await delayBroadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${attackerTroop.name} get ${attackerTotal} income.`);
+  await delayBroadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${defenderTroop.name} get ${defenderTotal} income.`);
 
-  if (hostTroop.winAttributes != 0) {
-    hostTroop.funding += hostTotal;
+  if (attackerTroop.winAttributes != 0) {
+    attackerTroop.funding += attackerTotal;
   } else {
-    hostTroop.funding = hostTroop.funding;
+    attackerTroop.funding = attackerTroop.funding;
   }
 
-  if (guestTroop.winAttributes != 0) {
-    guestTroop.funding += guestTotal;
+  if (defenderTroop.winAttributes != 0) {
+    defenderTroop.funding += defenderTotal;
   } else {
-    guestTroop.funding = guestTroop.funding;
+    defenderTroop.funding = defenderTroop.funding;
   }
   round++;
-  state = STATE.HOST_TURN;
+  state = STATE.ATTACKER_TURN;
   await checkWhoWin();
 }
 
 async function checkWhoWin() {
   if (round === 3) {
-    if (hostTroop.funding > guestTroop.funding) {
-      broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${hostTroop.name} win the game.`);
-    } else if (hostTroop.funding < guestTroop.funding) {
-      broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${guestTroop.name} win the game.`);
+    if (attackerTroop.funding > defenderTroop.funding) {
+      broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${attackerTroop.name} win the game.`);
+    } else if (attackerTroop.funding < defenderTroop.funding) {
+      broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${defenderTroop.name} win the game.`);
     } else {
       broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `No one win the game.`);
     }
-    host = null;
-    guest = null;
-    hostTroop = null;
-    guestTroop = null;
+    attacker = null;
+    defender = null;
+    attackerTroop = null;
+    defenderTroop = null;
     round = 0;
     state = STATE.MATCHING;
   }
@@ -308,11 +308,11 @@ async function checkWhoWin() {
 // if host is null, set the waitting list player to host, if guest is null, set the second player to guest
 function addPlayerToBattle() {
   if (wattingList.length === 0) return;
-  if (host === null) {
-    host = wattingList.shift();
+  if (attacker === null) {
+    attacker = wattingList.shift();
   }
-  if (guest === null) {
-    guest = wattingList.shift();
+  if (defender === null) {
+    defender = wattingList.shift();
   }
 }
 
@@ -325,12 +325,12 @@ async function delayBroadcastMessage(type, message) {
   });
 }
 
-async function compareAttribute(hostTroop, guestTroop, attribute) {
+async function compareAttribute(attackerTroop, defenderTroop, attribute) {
   let messages = [
     `${attribute} battling... `,
-    `${host.name} :${hostTroop[attribute]} vs ${guest.name} :${guestTroop[attribute]}`,
-    hostTroop[attribute] > guestTroop[attribute] ? `${host.name} win ${attribute} battle.` :
-      hostTroop[attribute] < guestTroop[attribute] ? `${guest.name} win ${attribute} battle.` :
+    `${attacker.name} :${attackerTroop[attribute]} vs ${defender.name} :${defenderTroop[attribute]}`,
+    attackerTroop[attribute] > defenderTroop[attribute] ? `${attacker.name} win ${attribute} battle.` :
+      attackerTroop[attribute] < defenderTroop[attribute] ? `${defender.name} win ${attribute} battle.` :
         `No one win ${attribute} battle.`
   ];
 
@@ -338,10 +338,10 @@ async function compareAttribute(hostTroop, guestTroop, attribute) {
     await delayBroadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, message);
   }
 
-  if (hostTroop[attribute] > guestTroop[attribute]) {
-    hostTroop.winAttributes += 1;
-  } else if (hostTroop[attribute] < guestTroop[attribute]) {
-    guestTroop.winAttributes += 1;
+  if (attackerTroop[attribute] > defenderTroop[attribute]) {
+    attackerTroop.winAttributes += 1;
+  } else if (attackerTroop[attribute] < defenderTroop[attribute]) {
+    defenderTroop.winAttributes += 1;
   }
 }
 

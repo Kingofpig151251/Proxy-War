@@ -4,8 +4,8 @@ var Element_ID = {
         gameTitle: 'gameTitle',
         roundLabel: 'roundLabel',
         fundingLabel: 'fundingLabel',
-        hostNameLabel: 'hostNameLabel',
-        guestNameLabel: 'guestNameLabel',
+        attackerNameLabel: 'attackerNameLabel',
+        defenderNameLabel: 'defenderNameLabel',
         stateLabel: 'stateLabel',
     },
     Forms: {

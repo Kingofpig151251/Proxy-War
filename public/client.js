@@ -7,8 +7,8 @@ $(() => {
             gameTitle: document.getElementById(Element_ID.Labels.gameTitle),
             roundLabel: document.getElementById(Element_ID.Labels.roundLabel),
             fundingLabel: document.getElementById(Element_ID.Labels.fundingLabel),
-            hostNameLabel: document.getElementById(Element_ID.Labels.hostNameLabel),
-            guestNameLabel: document.getElementById(Element_ID.Labels.guestNameLabel),
+            attackerNameLabel: document.getElementById(Element_ID.Labels.attackerNameLabel),
+            defenderNameLabel: document.getElementById(Element_ID.Labels.defenderNameLabel),
             stateLabel: document.getElementById(Element_ID.Labels.stateLabel),
         },
         Forms: {
@@ -62,8 +62,8 @@ $(() => {
             case MESSAGE_TYPES.UPDATA_LABEL:
                 stateLabel.innerHTML = data.value.state;
                 roundLabel.innerHTML = data.value.round;
-                hostNameLabel.innerHTML = data.value.hostName;
-                guestNameLabel.innerHTML = data.value.guestName;
+                attackerNameLabel.innerHTML = data.value.hostName;
+                defenderNameLabel.innerHTML = data.value.guestName;
                 fundingLabel.innerHTML = data.value.funding;
                 break;
             case MESSAGE_TYPES.UPDATA_WAITING_LIST:
