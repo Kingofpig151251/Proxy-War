@@ -21,6 +21,7 @@ const STATE = {
   MATCHING: 'Matching',
   HOST_TURN: 'Host Turn',
   GUEST_TURN: 'Guest Turn',
+  BATTLING: 'Battling',
 }
 
 let wattingList = [];
@@ -92,8 +93,8 @@ wss.on('connection', (ws) => {
           try {
             guestTroop.updateFromBattleMessage(jsonObj);
             broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${guestTroop.name} has finished the turn, the amount invested is ${guestTroop.force + guestTroop.arms + guestTroop.food}. With skill ${guestTroop.skill}`);
+            state = STATE.BATTLING;
             compare(hostTroop, guestTroop);
-            state = STATE.HOST_TURN;
             round++;
           } catch (error) {
             ws.send(JSON.stringify({ type: MESSAGE_TYPES.SYSTEM_MESSAGE, message: error.message }));
@@ -218,8 +219,8 @@ function setDisabled() {
 async function compare(hostTroop, guestTroop) {
   let hostTotal = hostTroop.force + hostTroop.arms + hostTroop.food;
   let guestTotal = guestTroop.force + guestTroop.arms + guestTroop.food;
-  let hostWinAttributes = 0;
-  let guestWanAttributes = 0;
+  hostTroop.winAttributes = 0;
+  guestTroop.winAttributes = 0;
 
   await compareAttribute(hostTroop, guestTroop, 'force');
   await compareAttribute(hostTroop, guestTroop, 'arms');
@@ -232,7 +233,7 @@ async function compare(hostTroop, guestTroop) {
       console.log(`hostTotal: ${hostTotal},hostTroop.funding: ${hostTroop.funding}`);
       break;
     case 'QE':
-      hostWinAttributes = hostWinAttributes <= 3 ? hostWinAttributes + 1 : hostWinAttributes;
+      hostTroop.wattingList = hostTroop.wattingList <= 3 ? hostTroop.wattingList + 1 : hostTroop.wattingList;
       break;
   }
 
@@ -241,29 +242,28 @@ async function compare(hostTroop, guestTroop) {
       guestTotal += guestTroop.funding;
       break;
     case 'QE':
-      guestWanAttributes = guestWanAttributes <= 3 ? guestWanAttributes + 1 : hostWinAttributes;
+      guestTroop.wattingList = guestTroop.wattingList <= 3 ? guestTroop.wattingList + 1 : guestTroop.wattingList;
       break;
   }
 
   if (hostTroop.skill === 'IC') {
-    guestTotal = guestTotal * guestWanAttributes * 0.5;
+    guestTotal *= guestTroop.wattingList * 0.5;
   } else {
-    guestTotal = guestTotal * guestWanAttributes;
+    guestTotal *= guestTroop.wattingList;
   }
 
   if (guestTroop.skill === 'IC') {
-    hostTotal = hostTotal * hostWinAttributes * 0.5;
+    hostTotal *= hostTroop.winAttributes * 0.5;
   } else {
-    hostTotal = hostTotal * hostWinAttributes;
-    console.log(`hostTotal: ${hostTotal},hostWinAttributes: ${hostWinAttributes}`);
+    hostTotal *= hostTroop.winAttributes;
   }
 
   await delayBroadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `Settlement incoming...`);
   await delayBroadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${hostTroop.name} get ${hostTotal} income.`);
   await delayBroadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${guestTroop.name} get ${guestTotal} income,`);
 
-  hostTroop.funding += hostTotal;
-  guestTroop.funding += guestTotal;
+  hostTroop.funding = hostTotal;
+  guestTroop.funding = guestTotal;
 }
 
 async function delayBroadcastMessage(type, message) {
@@ -276,17 +276,22 @@ async function delayBroadcastMessage(type, message) {
 }
 
 async function compareAttribute(hostTroop, guestTroop, attribute) {
-  await delayBroadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${attribute} battling... `);
-  await delayBroadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${host.name} :${hostTroop[attribute]}  `);
-  await delayBroadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${guest.name} :${guestTroop[attribute]}  `);
+  let messages = [
+    `${attribute} battling... `,
+    `${host.name} :${hostTroop[attribute]} vs ${guest.name} :${guestTroop[attribute]}`,
+    hostTroop[attribute] > guestTroop[attribute] ? `${host.name} win ${attribute} battle.` :
+      hostTroop[attribute] < guestTroop[attribute] ? `${guest.name} win ${attribute} battle.` :
+        `No one win ${attribute} battle.`
+  ];
+
+  for (let message of messages) {
+    await delayBroadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, message);
+  }
+
   if (hostTroop[attribute] > guestTroop[attribute]) {
     hostTroop.winAttributes += 1;
-    await delayBroadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${host.name} win ${attribute} battle.`);
   } else if (hostTroop[attribute] < guestTroop[attribute]) {
     guestTroop.winAttributes += 1;
-    await delayBroadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${guest.name} win ${attribute} battle.`);
-  } else {
-    await delayBroadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `No one win ${attribute} battle.`);
   }
 }
 
