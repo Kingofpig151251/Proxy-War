@@ -137,6 +137,9 @@ $(() => {
 
         battleForm.addEventListener('submit', (e) => {
             e.preventDefault();
+            for (let element of battleForm.elements) {
+                element.disabled = true;
+            }
             let selectedSkill = document.querySelector('input[name="radio_skill"]:checked').value;
             send({
                 type: MESSAGE_TYPES.BATTLE,

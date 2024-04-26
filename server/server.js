@@ -34,7 +34,7 @@ const ATTRIBUTE_MULTIPLIER = 0.5;
 
 wss.on('connection', (ws) => {
 
-  ws.on('message', (message) => {
+  ws.on('message', async (message) => {
     var jsonObj = JSON.parse(message);
     console.log('received', jsonObj);
     if (jsonObj.message === '') {
@@ -86,6 +86,7 @@ wss.on('connection', (ws) => {
             hostTroop.updateFromBattleMessage(jsonObj);
             broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${hostTroop.name} has finished the turn, the amount invested is ${hostTroop.force + hostTroop.arms + hostTroop.food}. With skill ${hostTroop.skill}`);
             state = STATE.GUEST_TURN;
+            broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `Now is ${state}.`);
           } catch (error) {
             ws.send(JSON.stringify({ type: MESSAGE_TYPES.SYSTEM_MESSAGE, message: error.message }));
           }
@@ -94,8 +95,9 @@ wss.on('connection', (ws) => {
             guestTroop.updateFromBattleMessage(jsonObj);
             broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${guestTroop.name} has finished the turn, the amount invested is ${guestTroop.force + guestTroop.arms + guestTroop.food}. With skill ${guestTroop.skill}`);
             state = STATE.BATTLING;
-            compare(hostTroop, guestTroop);
-            round++;
+            updateLabel();
+            await compare(hostTroop, guestTroop);
+            broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `Now is ${state}.`);
           } catch (error) {
             ws.send(JSON.stringify({ type: MESSAGE_TYPES.SYSTEM_MESSAGE, message: error.message }));
           }
@@ -115,7 +117,7 @@ wss.on('connection', (ws) => {
     updataWaitingList();
   });
 
-  ws.on('close', () => {
+  ws.on('close', async () => {
     // broadcast who are disconnected
     broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${ws.name} has disconnected.`);
 
@@ -123,7 +125,7 @@ wss.on('connection', (ws) => {
       startGame();
     }
     if (host && guest) {
-      setDisabled();
+      await setDisabled();
     }
     updateLabel();
     updataWaitingList();
@@ -200,7 +202,7 @@ function startGame() {
   round = 1;
 }
 
-function setDisabled() {
+async function setDisabled() {
   wss.clients.forEach(client => {
     const data = JSON.stringify({ type: MESSAGE_TYPES.SET_DISABLED, value: true });
     client.send(data);
@@ -213,7 +215,6 @@ function setDisabled() {
       guest.send(JSON.stringify({ type: MESSAGE_TYPES.SET_DISABLED, value: false }));
       break;
   }
-  broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `Now is ${state}.`);
 }
 
 async function compare(hostTroop, guestTroop) {
@@ -221,7 +222,6 @@ async function compare(hostTroop, guestTroop) {
   let guestTotal = guestTroop.force + guestTroop.arms + guestTroop.food;
   hostTroop.winAttributes = 0;
   guestTroop.winAttributes = 0;
-
   await compareAttribute(hostTroop, guestTroop, 'force');
   await compareAttribute(hostTroop, guestTroop, 'arms');
   await compareAttribute(hostTroop, guestTroop, 'food');
@@ -230,10 +230,9 @@ async function compare(hostTroop, guestTroop) {
   switch (hostTroop.skill) {
     case 'NB':
       hostTotal += hostTroop.funding;
-      console.log(`hostTotal: ${hostTotal},hostTroop.funding: ${hostTroop.funding}`);
       break;
     case 'QE':
-      hostTroop.wattingList = hostTroop.wattingList <= 3 ? hostTroop.wattingList + 1 : hostTroop.wattingList;
+      hostTroop.winAttributes = hostTroop.winAttributes <= 3 ? hostTroop.winAttributes + 1 : hostTroop.winAttributes;
       break;
   }
 
@@ -242,14 +241,14 @@ async function compare(hostTroop, guestTroop) {
       guestTotal += guestTroop.funding;
       break;
     case 'QE':
-      guestTroop.wattingList = guestTroop.wattingList <= 3 ? guestTroop.wattingList + 1 : guestTroop.wattingList;
+      guestTroop.winAttributes = guestTroop.winAttributes <= 3 ? guestTroop.winAttributes + 1 : guestTroop.winAttributes;
       break;
   }
 
   if (hostTroop.skill === 'IC') {
-    guestTotal *= guestTroop.wattingList * 0.5;
+    guestTotal *= guestTroop.winAttributes * 0.5;
   } else {
-    guestTotal *= guestTroop.wattingList;
+    guestTotal *= guestTroop.winAttributes;
   }
 
   if (guestTroop.skill === 'IC') {
@@ -262,8 +261,20 @@ async function compare(hostTroop, guestTroop) {
   await delayBroadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${hostTroop.name} get ${hostTotal} income.`);
   await delayBroadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${guestTroop.name} get ${guestTotal} income,`);
 
-  hostTroop.funding = hostTotal;
-  guestTroop.funding = guestTotal;
+
+  if (hostTroop.winAttributes != 0) {
+    hostTroop.funding += hostTotal;
+  } else {
+    hostTroop.funding = hostTroop.funding;
+  }
+  
+  if (guestTroop.winAttributes != 0) {
+    guestTroop.funding += guestTotal;
+  } else {
+    guestTroop.funding = guestTroop.funding;
+  }
+  round++;
+  state = STATE.HOST_TURN;
 }
 
 async function delayBroadcastMessage(type, message) {
