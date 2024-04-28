@@ -30,28 +30,33 @@
       </table>
       <label> Investment:</label>
       <label>Force</label>
-      <input id="forceInput" autocomplete="off" type="number" value="0" />
+      <input class="tooltip" id="forceInput" autocomplete="off" type="number" value="0" />
       <label>Arms</label>
-      <input id="armsInput" autocomplete="off" type="number" value="0" />
+      <input class="tooltip" id="armsInput" autocomplete="off" type="number" value="0" />
       <label>Food</label>
-      <input id="foodInput" autocomplete="off" type="number" value="0" />
+      <input class="tooltip" id="foodInput" autocomplete="off" type="number" value="0" />
       <label></label>
       <table id="skillRadioButtons">
         <tr>
           <td>
-            <label>Skill: </label>
+            <label class="tooltip">Skill:
+              <span class="tooltiptext"><strong>You must pick one skill</strong></span>
+            </label>
           </td>
-          <td>
+          <td class="tooltip">
             <label for="skillRadioNB">NB</label>
             <input type="radio" id="skillRadioNB" name="radio_skill" value="NB" checked />
+            <span class="tooltiptext"><strong>National Debt(NB)</strong><br>Includes the remaining money in the settlement multiplier.</span>
           </td>
-          <td>
+          <td class="tooltip">
             <label for="skillRadioQE">QE</label>
             <input type="radio" id="skillRadioQE" name="radio_skill" value="QE" />
+            <span class="tooltiptext"><strong>Quantitative Easing(QE)</strong><br>Ensures the settlement multiplier is at least 1, but no more than 3.</span>
           </td>
-          <td>
+          <td class="tooltip">
             <label for="skillRadioIC">IC</label>
             <input type="radio" id="skillRadioIC" name="radio_skill" value="IC" />
+            <span class="tooltiptext"><strong>Intervention Currency (IC)</strong><br>Reduces the opponent's settlement by 50%.</span>
           </td>
         </tr>
       </table>
@@ -69,6 +74,9 @@
     </form>
   </div>
   <div id="gameStatePanel">
+    <a id="gameTitleLabel" href="#" style="display: block; text-align: center; font-weight: bold; font-size: 20px;" onclick="return showRules();">
+      Proxy War</a>
+    <br>
     <table id="stateTable">
       <label id="stateLabel" style="display: block; text-align: center; font-weight: bold; font-size: 20px;">
         Matching
@@ -86,6 +94,10 @@
         <tr>
           <td id="attackerNameLabel">Waiting</td>
           <td id="defenderNameLabel">Waiting</td>
+        </tr>
+        <tr>
+          <td id="attackerFundingLabel">0</td>
+          <td id="defenderFundingLabel">0</td>
         </tr>
       </table>
       <br>

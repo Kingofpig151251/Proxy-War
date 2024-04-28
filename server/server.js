@@ -156,8 +156,8 @@ function broadcastMessage(type, message) {
 
 function returnFunding(client) {
   if (attackerTroop !== undefined && defenderTroop !== undefined) {
-    if (client === attacker) return attackerTroop.funding;
-    if (client === defender) return defenderTroop.funding;
+    if (client === attacker && attackerTroop !== null) return attackerTroop.funding;
+    if (client === defender && defenderTroop !== null) return defenderTroop.funding;
     return 0;
   }
   return 0;
@@ -174,6 +174,8 @@ function updateLabel() {
         round: round,
         hostName: hostName,
         guestName: guestName,
+        hostFunding: returnFunding(attacker),
+        guestFunding: returnFunding(defender),
         funding: returnFunding(client),
       },
     });
@@ -288,7 +290,7 @@ async function compare(attackerTroop, defenderTroop) {
 }
 
 async function checkWhoWin() {
-  if (round === 3) {
+  if (round > 3) {
     if (attackerTroop.funding > defenderTroop.funding) {
       broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${attackerTroop.name} win the game.`);
     } else if (attackerTroop.funding < defenderTroop.funding) {

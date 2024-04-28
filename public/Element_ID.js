@@ -6,7 +6,10 @@ var Element_ID = {
         fundingLabel: 'fundingLabel',
         attackerNameLabel: 'attackerNameLabel',
         defenderNameLabel: 'defenderNameLabel',
+        attackerFundingLabel: 'attackerFundingLabel',
+        defenderFundingLabel: 'defenderFundingLabel',
         stateLabel: 'stateLabel',
+        gameTitleLabel: 'gameTitleLabel',
     },
     Forms: {
         battleForm: 'battleForm',

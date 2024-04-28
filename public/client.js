@@ -9,7 +9,10 @@ $(() => {
             fundingLabel: document.getElementById(Element_ID.Labels.fundingLabel),
             attackerNameLabel: document.getElementById(Element_ID.Labels.attackerNameLabel),
             defenderNameLabel: document.getElementById(Element_ID.Labels.defenderNameLabel),
+            attackerFundingLabel: document.getElementById(Element_ID.Labels.attackerFundingLabel),
+            defenderFundingLabel: document.getElementById(Element_ID.Labels.defenderFundingLabel),
             stateLabel: document.getElementById(Element_ID.Labels.stateLabel),
+            gameTitleLabel: document.getElementById(Element_ID.Labels.gameTitleLabel),
         },
         Forms: {
             battleForm: document.getElementById(Element_ID.Forms.battleForm),
@@ -48,6 +51,22 @@ $(() => {
     init();
     setupListeners();
 
+    window.onload = updateLayout;
+    window.onresize = updateLayout;
+
+    function updateLayout() {
+        var battleForm = document.getElementById('battleForm');
+        var messageForm = document.getElementById('messageForm');
+        var gameOutputMessages = document.getElementById('gameOutputMessages');
+
+        var messageFormHeight = messageForm.offsetHeight;
+        var battleFormHeight = battleForm.offsetHeight;
+
+        battleForm.style.bottom = messageFormHeight + 'px';
+        gameOutputMessages.style.paddingBottom = (battleFormHeight + messageFormHeight) + 'px';
+    }
+
+
     //收到消息時的處理
     ws.onmessage = function (event) {
 
@@ -64,6 +83,8 @@ $(() => {
                 roundLabel.innerHTML = data.value.round;
                 attackerNameLabel.innerHTML = data.value.hostName;
                 defenderNameLabel.innerHTML = data.value.guestName;
+                attackerFundingLabel.innerHTML = `$${data.value.hostFunding}`;
+                defenderFundingLabel.innerHTML = `$${data.value.guestFunding}`;
                 fundingLabel.innerHTML = data.value.funding;
                 break;
             case MESSAGE_TYPES.UPDATA_WAITING_LIST:
@@ -148,6 +169,12 @@ $(() => {
                 food: foodInput.value,
                 skill: selectedSkill,
             });
+        });
+
+        gameTitleLabel.addEventListener('click', (e) => {
+            e.preventDefault();
+            alert("Here's how to play:\n1. Each player starts with a certain amount of money. The attacker has 100 units, and the defender has 90 units.\n2. Players invest their money in the three attributes. The amount invested in each attribute can vary.\n3. After both players have invested, the system will broadcast the total amount invested by each player, but not the specific investment items.\n4. The investments in the same attribute are compared. The player who invested more wins that attribute.\n5. The winning player's money is increased by the amount they invested multiplied by the number of attributes they won.\n6. The game ends after three rounds. The player with the most money wins.");
+            return false; // 阻止默認的鏈接行為        }
         });
     }
 });

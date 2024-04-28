@@ -15,8 +15,8 @@ class Troop {
     let arms = Number(message.arms);
     let food = Number(message.food);
     let skill = message.skill;
-    if (isNaN(force) || isNaN(arms) || isNaN(food)) {
-      throw new Error('Force, arms, and food must be numeric values.');
+    if (isNaN(force) || isNaN(arms) || isNaN(food) || force < 0 || arms < 0 || food < 0) {
+      throw new Error('Force, arms, and food must be numeric values and cannot be negative.');
     }
 
     // Check if the total does not exceed the funding
