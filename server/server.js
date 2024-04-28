@@ -119,23 +119,34 @@ wss.on('connection', (ws) => {
 
   ws.on('close', async () => {
     // broadcast who are disconnected
+    if (wss.clients.size === 0) {
+      attacker = null;
+      defender = null;
+      attackerTroop = null;
+      defenderTroop = null;
+      round = 0;
+      state = STATE.MATCHING;
+    }
     broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${ws.name} has disconnected.`);
-    addPlayerToBattle();
-    if (state === STATE.BATTLING) {
+    if (state != STATE.MATCHING) {
+      let name = ws === attacker ? defender.name : attacker.name;
       if (attacker === ws) {
-        broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${attacker.name} has escaped. ${defender.name} win the game.`);
+        broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${attacker.name} has escaped. ${name} win the game.`);
         attacker = null;
       }
       if (defender === ws) {
-        broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${defender.name} has escaped. ${attacker.name} win the game.`);
+        broadcastMessage(MESSAGE_TYPES.SYSTEM_MESSAGE, `${defender.name} has escaped. ${name} win the game.`);
         defender = null;
       }
-    }
-    if (attacker && defender && state === STATE.MATCHING) {
-      startGame();
-    }
-    if (attacker && defender) {
-      await setDisabled();
+      addPlayerToBattle();
+      round = 0;
+      state = STATE.MATCHING;
+      if (attacker && defender && state === STATE.MATCHING) {
+        startGame();
+      }
+      if (attacker && defender) {
+        await setDisabled();
+      }
     }
     updateLabel();
     updataWaitingList();
@@ -143,7 +154,6 @@ wss.on('connection', (ws) => {
   updateLabel();
   updataWaitingList();
 });
-
 
 function broadcastMessage(type, message) {
   wss.clients.forEach((client) => {
@@ -309,7 +319,8 @@ async function checkWhoWin() {
 
 // if host is null, set the waitting list player to host, if guest is null, set the second player to guest
 function addPlayerToBattle() {
-  if (wattingList.length === 0) return;
+  if (wattingList.length === 0)
+    return;
   if (attacker === null) {
     attacker = wattingList.shift();
   }
