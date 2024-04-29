@@ -100,7 +100,8 @@ $(() => {
                 break;
             case MESSAGE_TYPES.CHAT_MESSAGE:
                 //add the message to the gameOutputMessages list
-                gameOutputMessages.innerHTML += `<li><b>${data.name} : </b> ${data.message}</li>`;
+                let timestamp = new Date(data.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                gameOutputMessages.innerHTML += `<li>(${timestamp}) <b>${data.name} : </b> ${data.message}</li>`;
                 window.scrollTo(0, document.body.scrollHeight);
                 break;
             case MESSAGE_TYPES.SYSTEM_MESSAGE:

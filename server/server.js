@@ -14,8 +14,17 @@ const Troop = require('./Troop');
 const { type } = require('os');
 app.use(express.static('public'));
 const opn = require('opn');
-const e = require('express');
+const mongoose = require('mongoose');
+mongoose.connect('mongodb://localhost:27017/Proxy_War');
 //#endregion
+
+const chatSchema = new mongoose.Schema({
+  name: String,
+  message: String,
+  timestamp: Date
+});
+
+const Chat = mongoose.model('Chat', chatSchema);
 
 const STATE = {
   MATCHING: 'Matching',
@@ -32,7 +41,7 @@ let round = 0;
 const DELAY_INCREMENT = 1000; // 1 second
 const ATTRIBUTE_MULTIPLIER = 0.5;
 
-wss.on('connection', (ws) => {
+wss.on('connection', async (ws) => {
 
   ws.on('message', async (message) => {
     var jsonObj = JSON.parse(message);
@@ -71,12 +80,21 @@ wss.on('connection', (ws) => {
         });
         break;
       case MESSAGE_TYPES.CHAT_MESSAGE:
+        // 创建新的对话记录
+        const chat = new Chat({
+          name: ws.name,
+          message: jsonObj.message,
+          timestamp: new Date()
+        });
+        // 保存到数据库
+        await chat.save();
         //Send the message to all clients
         wss.clients.forEach((client) => {
           client.send(JSON.stringify({
             type: MESSAGE_TYPES.CHAT_MESSAGE,
             message: jsonObj.message,
-            name: ws.name
+            name: ws.name,
+            timestamp: chat.timestamp
           }));
         });
         break;
@@ -151,6 +169,21 @@ wss.on('connection', (ws) => {
     updateLabel();
     updataWaitingList();
   });
+
+  
+  // 从数据库中获取所有的聊天记录
+  const chatRecords = await Chat.find({});
+
+  // 将每条聊天记录发送给新用户
+  chatRecords.forEach(record => {
+    ws.send(JSON.stringify({
+      type: MESSAGE_TYPES.CHAT_MESSAGE,
+      name: record.name,
+      message: record.message,
+      timestamp: record.timestamp
+    }));
+  });
+
   updateLabel();
   updataWaitingList();
 });
