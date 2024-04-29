@@ -80,13 +80,13 @@ wss.on('connection', async (ws) => {
         });
         break;
       case MESSAGE_TYPES.CHAT_MESSAGE:
-        // 创建新的对话记录
+        //Create a new conversation record
         const chat = new Chat({
           name: ws.name,
           message: jsonObj.message,
           timestamp: new Date()
         });
-        // 保存到数据库
+        //Save to database
         await chat.save();
         //Send the message to all clients
         wss.clients.forEach((client) => {
@@ -170,11 +170,11 @@ wss.on('connection', async (ws) => {
     updataWaitingList();
   });
 
-  
-  // 从数据库中获取所有的聊天记录
+
+  // Get all chat records from the database
   const chatRecords = await Chat.find({});
 
-  // 将每条聊天记录发送给新用户
+  // Send each chat record to the new user
   chatRecords.forEach(record => {
     ws.send(JSON.stringify({
       type: MESSAGE_TYPES.CHAT_MESSAGE,
@@ -188,6 +188,7 @@ wss.on('connection', async (ws) => {
   updataWaitingList();
 });
 
+// Function to broadcast a message to all connected clients
 function broadcastMessage(type, message) {
   wss.clients.forEach((client) => {
     client.send(JSON.stringify({
@@ -197,6 +198,7 @@ function broadcastMessage(type, message) {
   });
 }
 
+// Function to return the funding of a client's troop
 function returnFunding(client) {
   if (attackerTroop !== undefined && defenderTroop !== undefined) {
     if (client === attacker && attackerTroop !== null) return attackerTroop.funding;
@@ -206,6 +208,7 @@ function returnFunding(client) {
   return 0;
 }
 
+// Function to update the label for all connected clients
 function updateLabel() {
   wss.clients.forEach(client => {
     const hostName = attacker ? attacker.name : 'Waiting';
@@ -226,6 +229,7 @@ function updateLabel() {
   });
 }
 
+// Function to update the waiting list for all connected clients
 function updataWaitingList() {
   clearWaitingList();
   wss.clients.forEach(client => {
@@ -239,6 +243,7 @@ function updataWaitingList() {
   });
 }
 
+// Function to clear the waiting list for all connected clients
 function clearWaitingList() {
   wss.clients.forEach(client => {
     const data = JSON.stringify({
@@ -257,6 +262,7 @@ function startGame() {
   round = 1;
 }
 
+// Function to set the disabled state for all connected clients
 async function setDisabled() {
   wss.clients.forEach(client => {
     const data = JSON.stringify({ type: MESSAGE_TYPES.SET_DISABLED, value: true });
@@ -272,6 +278,8 @@ async function setDisabled() {
   }
 }
 
+
+// Function to compare the attributes of attacker's troop and defender's troop
 async function compare(attackerTroop, defenderTroop) {
   let attackerTotal = attackerTroop.force + attackerTroop.arms + attackerTroop.food;
   let defenderTotal = defenderTroop.force + defenderTroop.arms + defenderTroop.food;
@@ -371,6 +379,7 @@ async function delayBroadcastMessage(type, message) {
   });
 }
 
+// Function to compare a specific attribute of attacker's troop and defender's troop
 async function compareAttribute(attackerTroop, defenderTroop, attribute) {
   let messages = [
     `${attribute} battling... `,
