@@ -13,14 +13,12 @@ const Element_ID = require("../public/Element_ID");
 const Troop = require("./Troop");
 const { type } = require("os");
 app.use(express.static("public"));
+app.get('/', function (req, res) {
+  res.sendFile(__dirname + '/public/index.html');
+})
 const opn = require("opn");
 const mongoose = require("mongoose");
-mongoose.connect("mongodb://127.0.0.1:27017/Proxy_War", {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-  useCreateIndex: true,
-  useFindAndModify: false,
-});
+mongoose.connect("mongodb://127.0.0.1:27017/Proxy_War");
 //#endregion
 
 const chatSchema = new mongoose.Schema({
