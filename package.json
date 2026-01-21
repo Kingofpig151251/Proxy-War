@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "express": "^4.19.2",
+    "express": "^4.22.1",
     "mongoose": "^8.4.3",
     "open": "^10.1.0",
     "opn": "^6.0.0",
