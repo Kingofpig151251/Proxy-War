@@ -1,9 +1,15 @@
 {
+  "name": "proxy-war",
+  "version": "1.0.0",
+  "description": "A real-time multiplayer game with WebSocket",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "node server/server.js"
+  },
   "dependencies": {
     "express": "^4.19.2",
     "mongoose": "^8.4.3",
-    "open": "^10.1.0",
-    "opn": "^6.0.0",
     "ws": "^8.17.1"
   }
 }
