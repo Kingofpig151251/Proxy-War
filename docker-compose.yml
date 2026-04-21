@@ -1,24 +1,33 @@
+version: '3.8'
+
 services:
   mongo:
     image: mongo:latest
     container_name: proxy_war_mongo
-    ports:
-      - "27017:27017"
+    network_mode: host
     volumes:
       - mongo_data:/data/db
     environment:
       MONGO_INITDB_DATABASE: Proxy_War
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: always
 
   app:
     image: proxy-war:latest
     container_name: proxy_war_app
-    ports:
-      - "8080:8080"
+    network_mode: host
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
     environment:
-      MONGO_URL: mongodb://mongo:27017/Proxy_War
-      PORT: 8080
+      MONGO_URL: mongodb://127.0.0.1:27018/Proxy_War
+      PORT: 18080
+    restart: always
 
 volumes:
   mongo_data:
