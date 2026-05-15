@@ -1,16 +1,21 @@
+
+# 使用官方 Node.js 基礎映像
 FROM node:18-alpine
 
+# 設定工作目錄
 WORKDIR /app
 
-COPY package.json package-lock.json ./
+# 複製 package.json 和 package-lock.json 到工作目錄
+COPY package*.json ./
 
-RUN npm install --production
+# 安裝應用程式的依賴
+RUN npm install && npm install ws
 
+# 複製所有檔案到工作目錄
 COPY . .
 
-EXPOSE 8080
+# 暴露應用程式監聽的埠
+EXPOSE 3000
 
-ENV PORT=8080
-ENV MONGO_URL=mongodb://mongo:27017/Proxy_War
-
-CMD ["node", "server/server.js"]
+# 定義啟動應用程式的命令
+CMD [ "node", "server/server.js" ]

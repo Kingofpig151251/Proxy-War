@@ -2,13 +2,14 @@ version: '3.8'
 
 services:
   app:
-    build: .
+    image: lam151251/proxy-war:latest
     ports:
       - "3000:3000"
     environment:
       - MONGODB_URI=mongodb://mongo:27017/proxywar
     depends_on:
       - mongo
+    restart: always
 
   mongo:
     image: mongo:4.4
@@ -16,6 +17,7 @@ services:
       - "27017:27017"
     volumes:
       - mongo-data:/data/db
+    restart: always
 
 volumes:
   mongo-data:

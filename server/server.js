@@ -17,7 +17,7 @@ app.get('/', function (req, res) {
   res.sendFile(__dirname + '/public/index.html');
 })
 const mongoose = require("mongoose");
-const MONGO_URL = process.env.MONGO_URL || "mongodb://127.0.0.1:27017/Proxy_War";
+const MONGO_URL = process.env.MONGODB_URI || "mongodb://localhost:27017/Proxy_War";
 mongoose.connect(MONGO_URL);
 //#endregion
 
@@ -496,7 +496,7 @@ async function saveChatAndSendMessage(ws, jsonObj) {
   });
 }
 
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
