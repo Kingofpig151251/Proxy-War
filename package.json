@@ -4,12 +4,12 @@
   "description": "A real-time multiplayer game with WebSocket",
   "main": "server/server.js",
   "scripts": {
-    "start": "node server/server.js",
-    "dev": "node server/server.js"
+    "start": "node server/server.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "mongoose": "^8.4.3",
-    "ws": "^8.17.1"
+     "express": "^4.19.2",
+     "mongoose": "^8.4.3",
+     "ws": "^8.17.1",
+     "mongodb": "^6.6.2"
   }
 }

@@ -11,14 +11,25 @@ const wss = new WebSocket.Server({ server });
 const MESSAGE_TYPES = require("../public/MESSAGE_TYPES");
 const Element_ID = require("../public/Element_ID");
 const Troop = require("./Troop");
-const { type } = require("os");
 app.use(express.static("public"));
-app.get('/', function (req, res) {
-  res.sendFile(__dirname + '/public/index.html');
-})
+app.get("/"), function (req, res) {
+  res.sendFile(__dirname + "/public/index.html");
+};
 const mongoose = require("mongoose");
 const MONGO_URL = process.env.MONGODB_URI || "mongodb://localhost:27017/Proxy_War";
-mongoose.connect(MONGO_URL);
+
+async function connectToMongoDB() {
+  try {
+    await mongoose.connect(MONGO_URL);
+    console.log("Connected to MongoDB successfully!");
+  } catch (error) {
+    console.error("MongoDB connection error:", error);
+    // Optionally, implement retry logic or graceful shutdown
+  }
+}
+
+connectToMongoDB();
+
 //#endregion
 
 const chatSchema = new mongoose.Schema({
@@ -400,7 +411,8 @@ async function compare(attackerTroop, defenderTroop) {
 
   if (defenderTroop.winAttributes != 0) {
     defenderTroop.funding += defenderTotal;
-  } else {
+  }
+  else {
     defenderTroop.funding = defenderTroop.funding;
   }
   round++;
