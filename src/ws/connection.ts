@@ -26,12 +26,12 @@ export class ConnectionHub {
     private verifyToken: (token: string) => string | null,
   ) {}
 
-  attach(ws: WebSocket): void {
+  attach(ws: WebSocket, token?: string | null): void {
     const session: Session = {
       id: this.nextId++,
       ws,
       name: `訪客${this.nextId}`,
-      username: null,
+      username: token ? this.verifyToken(token) : null,
       roomCode: null,
       alive: true,
     };

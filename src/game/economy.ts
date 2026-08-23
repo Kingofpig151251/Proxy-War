@@ -183,8 +183,8 @@ export function resolveRegion(
   return {
     entry: {
       region,
-      blueSpend: ctx.allocations.blue[region],
-      redSpend: ctx.allocations.red[region],
+      blueSpend: ctx.allocations.blue[region] ?? 0,
+      redSpend: ctx.allocations.red[region] ?? 0,
       blueEffective: effB.value,
       redEffective: effR.value,
       formula:

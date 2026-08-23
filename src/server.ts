@@ -62,7 +62,11 @@ async function main(): Promise<void> {
       return null;
     }
   });
-  wss.on('connection', (ws) => hub.attach(ws));
+  wss.on('connection', (ws, req) => {
+    // token 走 query param：/ws?token=xxx（瀏覽器 WS 唔支援自訂 header）
+    const url = new URL(req.url ?? '/', 'http://localhost');
+    hub.attach(ws, url.searchParams.get('token'));
+  });
 
   // 心跳：30s 清死連線；房間清理由 listSummary 惰性觸發＋定時兜底
   setInterval(() => hub.heartbeat(), 30_000).unref();
