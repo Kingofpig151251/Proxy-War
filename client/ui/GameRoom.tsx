@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { CardId, GameStateView, PlayerPublic } from '../../shared/protocol.js';
 import { CARDS, REGIONS, REGION_ORDER } from '../cards.js';
 import { store } from '../store.js';
-import { useStore } from './App.js';
+import { useStore } from './useStore.js';
 
 export function GameRoom() {
   const s = useStore();

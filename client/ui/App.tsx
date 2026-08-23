@@ -1,17 +1,11 @@
 /**
  * App — 頂層：連線畫面（含帳號登入/註冊）→ 大廳 → 房間。
  */
-import { useCallback, useState, useSyncExternalStore } from 'react';
+import { useState } from 'react';
 import { store } from '../store.js';
+import { useStore } from './useStore.js';
 import { Lobby } from './Lobby.js';
 import { GameRoom } from './GameRoom.js';
-
-export function useStore() {
-  return useSyncExternalStore(
-    useCallback((cb) => store.subscribe(cb), []),
-    () => store,
-  );
-}
 
 export function App() {
   const s = useStore();
@@ -38,8 +32,15 @@ export function App() {
   if (!s.connected) {
     return (
       <div className="center-screen">
-        <h1>連線中斷</h1>
-        <button onClick={() => location.reload()}>重新整理</button>
+        <h1>{s.connecting ? '連線中…' : '連線中斷'}</h1>
+        {!s.connecting && (
+          <>
+            <p className="hint">伺服器斷開或網絡問題</p>
+            <button className="primary" onClick={() => location.reload()}>
+              返回重試
+            </button>
+          </>
+        )}
       </div>
     );
   }

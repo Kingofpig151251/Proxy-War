@@ -1,17 +1,17 @@
 /**
- * 大廳：開房 / 加入 / 旁觀。
+ * Lobby — 作戰大廳：開房 / 加入 / 旁觀。
  */
 import { useState } from 'react';
 import { store } from '../store.js';
-import { useStore } from './App.js';
+import { useStore } from './useStore.js';
 
 export function Lobby({ name }: { name: string }) {
   const [code, setCode] = useState('');
-  const err = useStore().error;
+  const s = useStore();
 
   return (
     <div className="center-screen">
-      {err && <div className="toast error">{err}</div>}
+      {s.error && <div className="toast error">{s.error}</div>}
       <h1 className="title">作戰大廳</h1>
       <p className="subtitle">指揮官：{name}</p>
       <div className="lobby-actions">

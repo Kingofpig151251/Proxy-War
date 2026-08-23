@@ -11,8 +11,12 @@ export interface ChatEntry {
 
 type Listener = () => void;
 
+export type { Store };
+
 class Store {
   connected = false;
+  /** connect() 已叫但未開／已斷 */
+  connecting = false;
   view: GameStateView | null = null;
   chat: ChatEntry[] = [];
   error: string | null = null;
@@ -36,14 +40,17 @@ class Store {
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const qs = token ? `?token=${encodeURIComponent(token)}` : '';
     this.ws = new WebSocket(`${proto}//${location.host}/ws${qs}`);
+    this.connecting = true;
     this.ws.onopen = () => {
       this.connected = true;
+      this.connecting = false;
       sessionStorage.setItem('pw_name', name);
       this.screen = 'lobby';
       this.emit();
     };
     this.ws.onclose = () => {
       this.connected = false;
+      this.connecting = false;
       this.screen = 'idle';
       this.view = null;
       this.emit();
