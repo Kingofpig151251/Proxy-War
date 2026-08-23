@@ -1,15 +1,30 @@
 {
   "name": "proxy-war",
-  "version": "1.0.0",
-  "description": "A real-time multiplayer game with WebSocket",
-  "main": "server/server.js",
+  "version": "2.0.0-alpha.0",
+  "description": "PROXY WAR v2 — real-time multiplayer war-economics bluffing game (TypeScript rewrite)",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "start": "node server/server.js"
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/src/server.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
-     "express": "^4.19.2",
-     "mongoose": "^8.4.3",
-     "ws": "^8.17.1",
-     "mongodb": "^6.6.2"
+    "express": "^4.19.2",
+    "ws": "^8.17.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.14.0",
+    "@types/ws": "^8.5.10",
+    "tsx": "^4.15.0",
+    "typescript": "^5.5.0",
+    "vitest": "^1.6.0"
   }
 }
