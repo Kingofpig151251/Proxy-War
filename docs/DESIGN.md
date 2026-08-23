@@ -1,7 +1,7 @@
 # PROXY WAR v2 — 重造設計文檔
 
-> **狀態**：規則全部定案（骨架＋鎮壓折減 §3.4＋六張卡組合）；下一步 TS 實作
-> **日期**：2026-08-23（R1/R2 蒙地卡洛模擬驗證後定案）
+> **狀態**：規則全部定案（骨架＋鎮壓折減 §3.4＋六張卡組合）；✅ 帳密系統＋ELO 排行榜已入範圍（§6.4）
+> **日期**：2026-08-23（R1/R2 蒙地卡洛模擬驗證後定案；同日加入帳密系統決策）
 > **背景**：本專案原為 ITP4708「遊戲伺服器設計與實作」課題，現進行作品集級全面重造——規則、架構、UI、工程配套全部重新設計。
 
 ---
@@ -199,6 +199,20 @@
 - `git rm` 58MB `proxy-war-image.tar` 與 `Wallpaper.mp4`（不重寫歷史；日後可用 git-filter-repo 徹底瘦身）
 - `.gitignore` 補齊（dist、.env、coverage、*.tar、node_modules）
 - `Documentation.docx`、`gameplay.txt` 移入 `docs/`
+
+### 6.4 帳密系統與排行榜 ✅ 定案 2026-08-23（方案 C：完整帳密）
+
+**決策**：加入註冊／登入系統，排行榜綁真實帳號。
+
+| 項目 | 決定 |
+|---|---|
+| 認證 | 用戶名（3-16 英數底線）+ 密碼（≥8），bcrypt(10) hash 存儲 |
+| Session | JWT HS256，7 日有效，secret 由 `JWT_SECRET` env 提供 |
+| 儲存 | MongoDB `users` 集合（username 唯一索引）＋ `matches` 對局明細；DB 不可用退記憶體模式（遊戲可玩、統計暫緩） |
+| 排行榜 | ELO（K=32，起始 1000，零和）；終局自動入帋勝/敗/和＋ELO 變動＋對局紀錄 |
+| WS 認證 | 連線後首則訊息帶 token 驗證；房間制玩法唔強制登入，排行榜先需要 |
+
+**模組**：`src/auth/userRepo.ts`（repo + memory fallback）、`src/auth/authService.ts`（register/login/verify JWT）、`src/game/ranking.ts`（eloDeltas + recordMatch）。
 
 ---
 
