@@ -1,21 +1,28 @@
-version: '3.8'
-
 services:
   app:
     build: .
     ports:
-      - "3000:3000"
+      - '3000:3000'
     environment:
-      - MONGODB_URI=mongodb://mongo:27017/proxywar
+      # JWT_SECRET 必須由 .env 或環境提供，唔會用預設值起動
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET required in .env}
+      - PORT=3000
+      - MONGO_URL=mongodb://mongo:27017/proxywar
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped
 
   mongo:
-    image: mongo:4.4
-    ports:
-      - "27017:27017"
+    image: mongo:7
     volumes:
       - mongo-data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
 volumes:
   mongo-data:

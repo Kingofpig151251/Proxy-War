@@ -1,21 +1,23 @@
-
-# 使用官方 Node.js 基礎映像
-FROM node:18-alpine
-
-# 設定工作目錄
+# PROXY WAR v2 — 多階段構建
+# Stage 1: 構建（server tsc + client vite）
+FROM node:22-alpine AS build
 WORKDIR /app
-
-# 複製 package.json 和 package-lock.json 到工作目錄
 COPY package*.json ./
+RUN npm ci
+COPY tsconfig.json vite.config.ts ./
+COPY shared ./shared
+COPY src ./src
+COPY client ./client
+RUN npm run build
 
-# 安裝應用程式的依賴
-RUN npm install && npm install ws
-
-# 複製所有檔案到工作目錄
-COPY . .
-
-# 暴露應用程式監聽的埠
+# Stage 2: 運行（只帶 prod 依賴＋產物）
+FROM node:22-alpine
+WORKDIR /app
+ENV NODE_ENV=production
+COPY package*.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/public ./public
 EXPOSE 3000
-
-# 定義啟動應用程式的命令
-CMD [ "node", "server/server.js" ]
+USER node
+CMD ["node", "dist/src/server.js"]
