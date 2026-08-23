@@ -28,6 +28,10 @@ ALL_CARDS = list(CARD_ZH)
 ROUNDS, AID, START = 4, 20, 100
 DEBT_STEP, DEBT_CAP = 20, 2          # 每 $20 債務折 1 分，封頂 −2
 FREEZE_AMT, IMPOSE_RATE, RAID_MULT = 30, 0.20, 1.5
+# ── 帝國過度擴張：收益愈高嘅區，衛冕投入折減愈大（攻方不受影響）──
+# 防守有效值 = 投入 × K / (K + 區收入)。K=∞ 即無折減（baseline）；K=100 時：
+#   工業城$30→×0.77、油田$25→×0.80、首都$20→×0.83、邊境$10→×0.91
+DEFENSE_K = 100
 
 
 class Player:
@@ -58,9 +62,10 @@ def split_budget(total: int, weights: dict[str, float]) -> dict[str, int]:
 
 
 class Game:
-    def __init__(self, seed: int):
+    def __init__(self, seed: int, defense_k: float = float("inf")):
         self.rng = random.Random(seed)
         self.seed = seed
+        self.defense_k = defense_k   # 帝國過度擴張強度；inf＝無折減（baseline）
         self.p = {"B": Player("BLUE"), "R": Player("RED")}
         self.ctrl = {r: None for r in REGION_ORDER}   # 假設：全中立開局
         self.round_no = 0
@@ -176,30 +181,45 @@ class Game:
             self.p[pid].treasury += steal
             self.say(f"  📡 成本強加｜{pid} 抽走 {victim_id} 部署額 20% = ${steal} 入國庫")
 
-        # ── 階段4：逐區結算 ──
+        # ── 階段4：逐區結算（帝國過度擴張：衛冕投入按區收入折減）──
         self.say("⚔️ 結算｜")
         for r in REGION_ORDER:
             bv = allocs["B"].get(r, 0)
             rv = allocs["R"].get(r, 0)
-            eff_b = int(bv * RAID_MULT) if eff["raid"].get("B") == r else bv
-            eff_r = int(rv * RAID_MULT) if eff["raid"].get("R") == r else rv
+
+            def eff_val(pid: str, raw: int) -> tuple[int, str]:
+                """回傳 (有效值, 註解)。突襲倍率同防守折減可疊。"""
+                note_parts = []
+                v = raw
+                if eff["raid"].get(pid) == r:
+                    v = int(v * RAID_MULT)
+                    note_parts.append(f"{RAID_MULT}× 突襲")
+                if self.ctrl[r] == pid and self.defense_k != float("inf"):
+                    k = self.defense_k
+                    d = k / (k + REGIONS[r]["income"])
+                    v = int(v * d)
+                    note_parts.append(f"鎮壓折減 ×{d:.2f}")
+                return v, ("（" + "＋".join(note_parts) + "）" if note_parts else "")
+
+            eff_b, nb = eff_val("B", bv)
+            eff_r, nr = eff_val("R", rv)
             inc = self.ctrl[r]
             if eff_b > eff_r:
                 win, gain = "B", REGIONS[r]["vp"] * mult
-                note = f"（{RAID_MULT}× 突襲）" if eff_b != bv else ""
+                note = nb if win == "B" else ""
             elif eff_r > eff_b:
                 win, gain = "R", REGIONS[r]["vp"] * mult
-                note = f"（{RAID_MULT}× 突襲）" if eff_r != rv else ""
+                note = nr if win == "R" else ""
             else:                                        # 平手：現任守住；中立維持中立
                 if inc:
                     self.p[inc].score += 0
-                self.say(f"   · {ZH[r]}｜B ${bv} vs R ${rv} → 平手，{'現任 ' + inc + ' 守住' if inc else '維持中立'}")
+                self.say(f"   · {ZH[r]}｜B ${bv}{nb} vs R ${rv}{nr} → 平手，{'現任 ' + inc + ' 守住' if inc else '維持中立'}")
                 continue
             prev = self.ctrl[r]
             flipped = "易手！" if prev and prev != win else ("奪取" if prev is None else "衛冕")
             self.ctrl[r] = win
             self.p[win].score += gain
-            self.say(f"   · {ZH[r]}｜B ${bv}{note if win=='B' else ''} vs R ${rv}{note if win=='R' else ''} → {win} {flipped}（+{gain}分）")
+            self.say(f"   · {ZH[r]}｜B ${bv}{nb if win=='B' else ''} vs R ${rv}{nr if win=='R' else ''} → {win} {flipped}（+{gain}分）")
 
         # ── 階段5：回合末（解凍）──
         for pl in self.p.values():
@@ -310,8 +330,8 @@ GAPS = """
 """
 
 
-def run_game(seed: int, swap: bool = False) -> Game:
-    g = Game(seed)
+def run_game(seed: int, swap: bool = False, defense_k: float = float("inf")) -> Game:
+    g = Game(seed, defense_k=defense_k)
     ais = ({"B": WarBot(), "R": EconBot()} if swap else {"B": EconBot(), "R": WarBot()})
     for _ in range(ROUNDS):
         g.play_round(ais)
@@ -319,75 +339,48 @@ def run_game(seed: int, swap: bool = False) -> Game:
     return g
 
 
+VARIANTS = [
+    ("baseline", "無折減（原案）", float("inf")),
+    ("k50",      "鎮壓折減 K=50（強）", 50.0),
+    ("k25",      "鎮壓折減 K=25（極強）", 25.0),
+]
+
+
 def main():
-    # ── 蒙地卡洛：N 個 seed × 正反座各一場（換位對照，排除座位/先手偏差）──
     N = 800
-    wins = Counter()          # 按流派計
-    seat_bias = Counter()     # 按座位（BLUE/RED）計
-    margins, fb_all, fr_all = [], [], []
-    for s in range(N):
-        for swap in (False, True):
-            g = run_game(1000000 * int(swap) + s, swap=swap)
-            res, winner, fb, fr = g.finish()
-            fb_all.append(fb)
-            fr_all.append(fr)
-            if winner:
-                wseat = winner
-                wstrat = ("ECON" if ((wseat == "B") != swap) else "SCORE")
-                wins[wstrat] += 1
-                seat_bias[wseat] += 1
-                margins.append(abs(fb - fr))
-            else:
-                wins["draw"] += 1
-                seat_bias["draw"] += 1
-    total_games = 2 * N
+    report = ["# PROXY WAR v2 — 帝國過度擴張 A/B 戰報 R2\n",
+              "> 問題：收益愈大嘅區愈難守住（衛冕投入按區收入折減，攻方全額）能否修正 R1 發現嘅經濟流滾雪球？\n",
+              "> 公式：防守有效值 = 投入 × K/(K+區收入)。K→∞ 即原案；工業城($30)喺 K=50 時折減 ×0.63、首都($20) ×0.71、邊境($10) ×0.83。\n"]
 
-    # ── 揾一場比分最咬緊嘅完整對局做展示 ──
-    best, best_margin = None, 99
-    for s in range(N):
-        g = run_game(10000 + s)
-        _, winner, fb, fr = g.finish()
-        m = abs(fb - fr) if winner else 0.5   # tiebreak 場計半分差，優先展示
-        if m < best_margin:
-            best, best_margin = g, m
-        if m == 0.5:
-            break
+    for vname, vdesc, k in VARIANTS:
+        wins, seat_bias = Counter(), Counter()
+        margins = []
+        for s in range(N):
+            for swap in (False, True):
+                g = run_game(1000000 * int(swap) + s, swap=swap, defense_k=k)
+                _, winner, fb, fr = g.finish()
+                if winner:
+                    wstrat = "ECON" if ((winner == "B") != swap) else "SCORE"
+                    wins[wstrat] += 1
+                    seat_bias[winner] += 1
+                    margins.append(abs(fb - fr))
+                else:
+                    wins["draw"] += 1
+                    seat_bias["draw"] += 1
+        total = 2 * N
+        flips = sum(margins) / max(len(margins), 1)
+        report.append(f"## 變體：{vdesc}\n")
+        report.append(f"- 經濟流 **{wins['ECON']}**（{wins['ECON']/total:.0%}）｜分數流 {wins['SCORE']}（{wins['SCORE']/total:.0%}）｜和 {wins['draw']}")
+        report.append(f"- 座位 B{seat_bias['B']}:R{seat_bias['R']}｜平均分差 {flips:.2f}")
+        report.append("")
+    report.append("---")
+    report.append("*同 1600 場/變體、同 seed 集、正反座對照；兩派 AI 未因新機制調整策略（刻意——驗證舊打法會唔會被懲罰）。*")
 
-    res, winner, fb, fr = best.finish()
-    lines = []
-    lines.append("# PROXY WAR v2 — 規則模擬戰報 R1\n")
-    lines.append("> 拋棄式 Python 原型（`prototypes/rules_sim.py`），照 DESIGN.md v2 規則骨架跑。")
-    lines.append("> 目的：TS 重寫前驗證規則可運行＋初探平衡。數值為草案。\n")
-    lines.append("## 展示局（seed=%d，比分最咬緊）\n" % best.seed)
-    lines.append(f"- **{EconBot.NAME}** vs **{WarBot.NAME}**")
-    lines.append("- 假設：全中立開局、一回合一張卡、每卡每場一次\n")
-    lines.extend(best.log)
-    lines.append("\n### 逐回合態勢表\n")
-    lines.append("| 回合 | BLUE國庫 | BLUE分 | RED國庫 | RED分 | 控制權 |")
-    lines.append("|---|---|---|---|---|---|")
-    lines.extend(best.snapshots)
-    lines.append(GAPS)
-    b_avg, r_avg = sum(fb_all) / total_games, sum(fr_all) / total_games
-    lines.append("## 蒙地卡洛 %d 場（%d 個 seed × 正反座，雜訊不同）\n" % (total_games, N))
-    lines.append(f"- 按流派：經濟流（AZURE）勝 **{wins['ECON']}**（{wins['ECON']/total_games:.0%}）｜"
-                 f"分數流（CRIMSON）勝 **{wins['SCORE']}**（{wins['SCORE']/total_games:.0%}）｜平手 {wins['draw']}")
-    lines.append(f"- 按座位：BLUE 勝 {seat_bias['B']}｜RED 勝 {seat_bias['R']}｜和 {seat_bias['draw']}（座位偏差檢查）")
-    lines.append(f"- 平均終局分：{b_avg:.1f} vs {r_avg:.1f}；有勝負場平均分差 {sum(margins)/len(margins):.2f}")
-    lines.append("- **發現 1（策略失衡）**：經濟流壓制分數流（94% vs 4%）——搶經濟區滾出收入優勢後，"
-                 "分數流決戰翻盤唔夠力。兩派 AI 都係啟發式，未足以斷定規則有病，但值得喺 TS 版做對稱性測試。")
-    lines.append("- **發現 2（平手規則）**：展示局 14:14 打入國庫 tiebreak——B 因 WarBonds 負債罰"
-                 "冇扣到分但燒晒錢，$0 vs $18 判負。印證「平手比國庫」會令籌資卡有隱性成本，設計成立。")
-    lines.append("---\n*此報告由 rules_sim.py 生成，屬原型驗證紀錄，非產品文檔。*")
+    out = "\n".join(report) + "\n"
+    with open("docs/battle-sim-r2-overextension.md", "w") as f:
+        f.write(out)
 
-    out = "\n".join(lines)
-    with open("docs/battle-sim-r1.md", "w") as f:
-        f.write(out + "\n")
-
-    print(f"[MC] {total_games} 場：經濟流 {wins['ECON']} / 分數流 {wins['SCORE']} / 和 {wins['draw']}"
-          f"｜座位 B{seat_bias['B']}:R{seat_bias['R']}"
-          f"｜平均分 {b_avg:.1f}:{r_avg:.1f}")
-    print(f"[SHOWCASE] seed={best.seed} → {res.strip()}")
-    print("[OUT] docs/battle-sim-r1.md 已寫入")
+    print(out)
 
 
 if __name__ == "__main__":
