@@ -5,3 +5,4 @@ coverage/
 *.tar
 *.log
 .DS_Store
+*.mp4
