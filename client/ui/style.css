@@ -184,6 +184,35 @@ input:focus { outline: none; border-color: var(--blue); }
 
 .chatbox input { width: 100%; }
 
+/* ── 大廳 v3 ── */
+.lobby {
+  max-width: 1200px; margin: 0 auto; padding: 12px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.invite-tray { border-color: var(--gold); }
+.invite-row { display: flex; align-items: center; gap: 10px; padding: 4px 0; }
+.lobby-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+}
+.lobby-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.lobby-list li {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; border-radius: 6px; background: #0d1117;
+  font-size: 13px;
+}
+.lobby-list li.me { border: 1px solid var(--blue); }
+.lobby-list.ranked li { counter-increment: rank; }
+.lp-rank { color: var(--gold); font-weight: bold; min-width: 32px; }
+.lp-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lp-elo { color: var(--gold); font-weight: bold; }
+.lp-status { color: var(--dim); font-size: 12px; }
+.st-playing { color: var(--red); }
+.st-queued { color: var(--gold); }
+
+@media (max-width: 900px) {
+  .lobby-grid { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 720px) {
   .regions { grid-template-columns: repeat(2, 1fr); }
   .hand { justify-content: center; }

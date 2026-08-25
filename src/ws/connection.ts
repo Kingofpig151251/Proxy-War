@@ -1,16 +1,19 @@
 /**
- * WS 連線硬化層：JSON parse 保護、訊息 schema 驗證、限速、路由。
+ * WS 連線硬化層＋大廳路由：JSON parse 保護、限速、強制帳號、
+ * 大廳快照／匹配隊列／邀請對局／觀戰分派。
  */
 import type { WebSocket } from 'ws';
-import type { ClientMsg } from '../../shared/protocol.js';
+import type { ClientMsg, ServerMsg } from '../../shared/protocol.js';
 import { ALL_CARDS, REGION_ORDER } from '../../shared/protocol.js';
 import { RoomManager } from '../game/Room.js';
+import { LobbyService } from '../lobby/LobbyService.js';
 
 export interface Session {
   id: number;
   ws: WebSocket;
-  name: string;
-  username: string | null;
+  /** 強制帳號制：username 即身份；未認證不得進場 */
+  username: string;
+  elo: number;
   roomCode: string | null;
   alive: boolean;
 }
@@ -23,19 +26,40 @@ export class ConnectionHub {
 
   constructor(
     private manager: RoomManager,
-    private verifyToken: (token: string) => string | null,
+    private lobby: LobbyService,
+    /** 回傳 username 與當前 ELO（可異步）；token 無效回 null（拒連） */
+    private verifyToken: (
+      token: string,
+    ) => { username: string; elo: number } | Promise<{ username: string; elo: number }> | null,
   ) {}
 
   attach(ws: WebSocket, token?: string | null): void {
+    const authed = token ? this.verifyToken(token) : null;
+    if (!authed) {
+      // 未帶有效 token：只允許收一則錯誤即斷
+      const reject: ServerMsg = { type: 'error', payload: { message: '需要登入' } };
+      ws.send(JSON.stringify(reject));
+      ws.close();
+      return;
+    }
+
+    void Promise.resolve(authed).then((a) => {
+      this.registerSession(ws, a.username, a.elo);
+    });
+  }
+
+  private registerSession(ws: WebSocket, username: string, elo: number): void {
     const session: Session = {
       id: this.nextId++,
       ws,
-      name: `訪客${this.nextId}`,
-      username: token ? this.verifyToken(token) : null,
+      username,
+      elo,
       roomCode: null,
       alive: true,
     };
     this.sessions.set(session.id, session);
+    // 同 username 多開：以 session 為單位掛進大廳名單
+    this.lobby.connect(session.username, session.elo, session.id);
 
     let timestamps: number[] = [];
     ws.on('pong', () => {
@@ -47,7 +71,7 @@ export class ConnectionHub {
       const now = Date.now();
       timestamps = timestamps.filter((t) => now - t < RATE.windowMs);
       if (timestamps.length >= RATE.maxMsgs) {
-        this.send(session, { type: 'error', payload: { message: '講嘢太快，冷靜下' } });
+        this.send(session, { type: 'error', payload: { message: '發送過快，稍候再試' } });
         return;
       }
       timestamps.push(now);
@@ -77,7 +101,12 @@ export class ConnectionHub {
       const room = session.roomCode ? this.manager.get(session.roomCode) : null;
       room?.removeConn(session.id);
       this.sessions.delete(session.id);
+      this.lobby.disconnect(session.username, session.id);
+      this.broadcastLobby();
     });
+
+    // 認證通過：直接送大廳快照
+    this.send(session, { type: 'lobby', payload: { snapshot: this.lobby.snapshot() } });
   }
 
   /** 心跳：清 dead connections */
@@ -96,6 +125,14 @@ export class ConnectionHub {
     if (s.ws.readyState === 1) s.ws.send(JSON.stringify(msg));
   }
 
+  /** 大廳快照廣播給所有不在對局內的連線 */
+  broadcastLobby(): void {
+    const snap = this.lobby.snapshot();
+    for (const s of this.sessions.values()) {
+      if (!s.roomCode) this.send(s, { type: 'lobby', payload: { snapshot: snap } });
+    }
+  }
+
   /** schema 驗證＋分派 */
   private handle(s: Session, msg: unknown): void {
     if (typeof msg !== 'object' || msg === null || !('type' in msg)) {
@@ -105,35 +142,82 @@ export class ConnectionHub {
     const m = msg as ClientMsg;
     try {
       switch (m.type) {
-        case 'createRoom': {
-          this.requireName(m.payload?.name);
-          s.name = String(m.payload.name).slice(0, 24);
-          const room = this.manager.create();
-          this.joinAsPlayer(s, room.code);
+        case 'joinLobby': {
+          if (s.roomCode) {
+            // 離開房間回大廳
+            const old = this.manager.get(s.roomCode);
+            old?.removeConn(s.id);
+            s.roomCode = null;
+          }
+          this.lobby.setStatus(s.username, 'lobby');
+          this.sendLobbyTo(s);
+          this.broadcastLobby();
           break;
         }
-        case 'joinRoom': {
-          this.requireName(m.payload?.name);
-          s.name = String(m.payload.name).slice(0, 24);
-          const code = String(m.payload.code ?? '').toUpperCase();
+        case 'queueJoin': {
+          if (s.roomCode) return; // 對局中不可排隊
+          this.lobby.joinQueue(s.username);
+          this.broadcastLobby();
+          this.tryStartMatchedGame();
+          break;
+        }
+        case 'queueLeave': {
+          this.lobby.leaveQueue(s.username);
+          this.broadcastLobby();
+          break;
+        }
+        case 'invite': {
+          if (s.roomCode) return;
+          const to = String((m.payload as { to?: unknown })?.to ?? '');
+          const inv = this.lobby.createInvite(s.username, to);
+          if (!inv) {
+            this.send(s, { type: 'error', payload: { message: '無法邀請該玩家' } });
+            return;
+          }
+          const target = this.findSessionByUsername(to);
+          if (target) {
+            this.send(target, { type: 'invited', payload: { id: inv.id, from: inv.from } });
+          }
+          break;
+        }
+        case 'inviteRespond': {
+          if (s.roomCode) return;
+          const p = m.payload as { id?: unknown; accept?: unknown };
+          const id = String(p.id ?? '');
+          const accept = p.accept === true;
+          if (accept) {
+            const inv = this.lobby.acceptInvite(id, s.username);
+            if (!inv) {
+              this.send(s, { type: 'error', payload: { message: '邀請已失效' } });
+              return;
+            }
+            // 開房：受邀者藍方、邀請者紅方（任一方斷線則邀請作廢）
+            const sFrom = this.findSessionByUsername(inv.from);
+            if (!sFrom) {
+              this.send(s, { type: 'error', payload: { message: '對方已離線' } });
+              this.lobby.setStatus(inv.from, 'lobby');
+              this.lobby.setStatus(s.username, 'lobby');
+              return;
+            }
+            const room = this.manager.create();
+            this.seatPlayer(sFrom, room.code, 'red');
+            this.seatPlayer(s, room.code, 'blue');
+            this.broadcastLobby();
+          } else {
+            this.lobby.declineInvite(id, s.username);
+            this.broadcastLobby();
+          }
+          break;
+        }
+        case 'spectate': {
+          if (s.roomCode) return;
+          const code = String((m.payload as { code?: unknown })?.code ?? '').toUpperCase();
           const room = this.manager.get(code);
           if (!room) {
             this.send(s, { type: 'error', payload: { message: '找不到房間' } });
             return;
           }
-          this.joinAsPlayer(s, code);
-          break;
-        }
-        case 'spectate': {
-          this.requireName(m.payload?.name);
-          s.name = String(m.payload.name).slice(0, 24);
-          const room = this.manager.get(String(m.payload.code ?? ''));
-          if (!room) {
-            this.send(s, { type: 'error', payload: { message: '找不到房間' } });
-            return;
-          }
-          this.leaveCurrent(s);
-          if (!room.addSpectator({ conn: wrapConn(s), name: s.name, username: s.username })) {
+          if (!room.addSpectator({ conn: wrapConn(s), name: s.username, username: s.username })) {
             this.send(s, { type: 'error', payload: { message: '旁觀席已滿' } });
             return;
           }
@@ -148,7 +232,7 @@ export class ConnectionHub {
           if (!room) return;
           const text = String((m.payload as { text?: unknown })?.text ?? '').slice(0, 300).trim();
           if (!text) return;
-          room.chat(s.name, text);
+          room.chat(s.username, text);
           break;
         }
         case 'submitCard': {
@@ -194,11 +278,15 @@ export class ConnectionHub {
           }
           const r = room.submitDeploy(seat, clean);
           if (!r.ok) this.send(s, { type: 'error', payload: { message: r.reason ?? '部署失敗' } });
+          else this.broadcastLobby(); // 對局狀態變化 → 快照更新（回合數等）
           break;
         }
         case 'playAgain': {
           const room = s.roomCode ? this.manager.get(s.roomCode) : null;
-          if (room?.game.finished) room.rematch();
+          if (room?.game.finished) {
+            room.rematch();
+            this.broadcastLobby();
+          }
           break;
         }
         default:
@@ -212,28 +300,46 @@ export class ConnectionHub {
     }
   }
 
-  private requireName(name: unknown): void {
-    if (typeof name !== 'string' || name.trim().length === 0) {
-      throw new Error('需要暱稱');
+  // ── 匹配 ────────────────────────────────────────────
+  private tryStartMatchedGame(): void {
+    for (;;) {
+      const pair = this.lobby.tryMatch();
+      if (!pair) break;
+      const [uBlue, uRed] = pair;
+      const sBlue = this.findSessionByUsername(uBlue);
+      const sRed = this.findSessionByUsername(uRed);
+      if (!sBlue || !sRed) {
+        // 其中一方斷線：退回另一位
+        this.lobby.setStatus(uBlue === sBlue?.username ? uRed : uBlue, 'lobby');
+        continue;
+      }
+      const room = this.manager.create();
+      this.seatPlayer(sBlue, room.code, 'blue');
+      this.seatPlayer(sRed, room.code, 'red');
     }
+    this.broadcastLobby();
   }
 
-  private joinAsPlayer(s: Session, code: string): void {
+  /** 把 session 放入指定座位（Room 內部座位由 addPlayer 順序決定，這裡用直接 slot 寫入） */
+  private seatPlayer(s: Session, code: string, seat: 'blue' | 'red'): void {
     const room = this.manager.get(code)!;
     this.leaveCurrent(s);
-    const seat = room.addPlayer({ conn: wrapConn(s), name: s.name, username: s.username });
-    if (!seat) {
-      // 額滿→自動轉旁觀
-      room.addSpectator({ conn: wrapConn(s), name: s.name, username: s.username });
-      s.roomCode = room.code;
-      this.send(s, { type: 'spectating', payload: { code: room.code } });
-      room.pushState();
-      return;
-    }
-    s.roomCode = room.code;
-    this.send(s, { type: 'joined', payload: { code: room.code, seat } });
+    const actual = room.addPlayer({ conn: wrapConn(s), name: s.username, username: s.username });
+    s.roomCode = code;
+    this.send(s, { type: 'joined', payload: { code, seat: actual ?? seat } });
     room.pushState();
     this.sendChatBacklog(room, s);
+  }
+
+  private findSessionByUsername(username: string): Session | null {
+    for (const s of this.sessions.values()) {
+      if (s.username === username && !s.roomCode) return s;
+    }
+    return null;
+  }
+
+  private sendLobbyTo(s: Session): void {
+    this.send(s, { type: 'lobby', payload: { snapshot: this.lobby.snapshot() } });
   }
 
   private leaveCurrent(s: Session): void {

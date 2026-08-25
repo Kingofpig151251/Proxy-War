@@ -55,9 +55,16 @@ async function main(): Promise<void> {
   const wss = new WebSocketServer({ server, path: '/ws' });
 
   const { ConnectionHub } = await import('./ws/connection.js');
-  const hub = new ConnectionHub(manager, (token) => {
+  const { LobbyService } = await import('./lobby/LobbyService.js');
+  const lobby = new LobbyService(manager);
+  const hub = new ConnectionHub(manager, lobby, (token) => {
     try {
-      return auth.verify(token).username;
+      const { username } = auth.verify(token);
+      // ELO 即時取；查不到（記憶體模式邊界）以 1000 起始分計
+      return Promise.resolve(repo.find(username)).then((u) => ({
+        username,
+        elo: u?.stats.elo ?? 1000,
+      }));
     } catch {
       return null;
     }

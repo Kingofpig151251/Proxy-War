@@ -5,52 +5,53 @@ import { Lobby } from './Lobby.js';
 import { GameRoom } from './GameRoom.js';
 import { EmojiIcon } from './EmojiIcon.tsx';
 
+type Notice = React.ReactNode;
+
 export function App() {
   const s = useStore();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [user, setUser] = useState('');
   const [name, setName] = useState('');
   const [token, setToken] = useState(localStorage.getItem('pw_token') || '');
-  /** 提示訊息：字串或 JSX（帶 icon） */
-  const [msg, setMsg] = useState<React.ReactNode>('');
+  const [notice, setNotice] = useState<Notice>('');
   const [busy, setBusy] = useState(false);
 
+  /** 取得 token 後即建立 WS 連線（強制帳號制） */
   useEffect(() => {
-    if (token) {
-      store.send({ type: 'auth', payload: { token } });
+    if (token && !store.connected && !store.connecting) {
+      store.connect(name || user || localStorage.getItem('pw_user') || '指揮官', token);
     }
   }, [token]);
 
   useEffect(() => {
     if (s.error) {
-      setMsg(s.error);
+      setNotice(s.error);
       setBusy(false);
     }
   }, [s.error]);
 
   const submit = async () => {
     if (!user || !name) return;
-    setMsg('');
+    setNotice('');
     setBusy(true);
     try {
-      // 相對路徑經 vite proxy／生產反代轉發，不寫死 host
       const res = await fetch(`/api/${mode}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user, name }),
+        body: JSON.stringify({ username: user, password: name }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '操作失敗');
-      localStorage.setItem('pw_user', user);
+      localStorage.setItem('pw_user', data.user.username);
       localStorage.setItem('pw_token', data.token);
       setToken(data.token);
-      setMsg(
+      setNotice(
         <>
-          <EmojiIcon emoji="✅" size={16} /> {mode === 'login' ? '登入' : '註冊'}成功——對局將計入排行榜
+          <EmojiIcon emoji="✅" size={16} /> {mode === 'login' ? '登入' : '註冊'}成功，進入大廳
         </>,
       );
     } catch (e) {
-      setMsg(
+      setNotice(
         <>
           <EmojiIcon emoji="❌" size={16} /> {(e as Error).message}
         </>,
@@ -60,8 +61,44 @@ export function App() {
     }
   };
 
+  /** 一鍵體驗：用演示帳號登入（伺服器預建；失敗則自動註冊） */
+  const quickPlay = async () => {
+    setNotice('');
+    setBusy(true);
+    try {
+      let res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: 'demo', password: 'demo12345' }),
+      });
+      if (!res.ok) {
+        // 首次未建：自動註冊演示帳號
+        res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: 'demo', password: 'demo12345' }),
+        });
+      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '演示帳號不可用');
+      localStorage.setItem('pw_user', data.user.username);
+      localStorage.setItem('pw_token', data.token);
+      setToken(data.token);
+    } catch (e) {
+      setNotice(
+        <>
+          <EmojiIcon emoji="❌" size={16} /> {(e as Error).message}
+        </>,
+      );
+      setBusy(false);
+    }
+  };
+
   if (s.screen === 'room') {
     return <GameRoom />;
+  }
+  if (s.screen === 'lobby') {
+    return <Lobby me={s.me} />;
   }
 
   return (
@@ -71,20 +108,26 @@ export function App() {
       </h1>
       <p className="subtitle">代・理・戰・爭 — 戰爭經濟學心理博弈</p>
 
-      {msg && <div className="toast">{msg}</div>}
+      {notice && <div className="toast">{notice}</div>}
+      {s.connecting && <div className="hint">連線中……</div>}
+
+      <button className="primary big" onClick={quickPlay} disabled={busy}>
+        <EmojiIcon emoji="⚡" size={20} /> 一鍵體驗
+      </button>
 
       <div className="panel join-box">
         <details open>
           <summary>{mode === 'login' ? '登入' : '註冊'}帳戶</summary>
           <div className="acct-box">
             <input
-              placeholder="用戶名"
+              placeholder="用戶名（3-16 英數底線）"
               value={user}
               onChange={(e) => setUser(e.target.value)}
               disabled={busy}
             />
             <input
-              placeholder="顯示名稱"
+              placeholder="密碼（至少 8 位）"
+              type="password"
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={busy}
@@ -93,28 +136,15 @@ export function App() {
               <button className="primary" onClick={submit} disabled={busy || !user || !name}>
                 {mode === 'login' ? '登入' : '註冊'}
               </button>
-              <button className="ghost" onClick={() => setMode(mode === 'login' ? 'register' : 'login')}>
+              <button
+                className="ghost"
+                onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
+              >
                 切換到{mode === 'login' ? '註冊' : '登入'}
               </button>
             </div>
           </div>
         </details>
-        <details>
-          <summary>遊覽模式</summary>
-          <button
-            className="ghost big"
-            onClick={() => {
-              setToken('guest');
-              store.send({ type: 'spectate', payload: {} });
-            }}
-          >
-            <EmojiIcon emoji="👁️" size={20} /> 旁觀對局
-          </button>
-        </details>
-      </div>
-
-      <div className="lobby-actions">
-        <Lobby name={name || '匿名玩家'} />
       </div>
     </div>
   );

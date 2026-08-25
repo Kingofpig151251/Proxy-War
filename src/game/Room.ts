@@ -328,6 +328,8 @@ export class RoomManager {
     this.cleanupEmpty();
     return Array.from(this.rooms.values()).map((r) => ({
       code: r.code,
+      blue: r.blue.member?.name ?? '',
+      red: r.red.member?.name ?? '',
       players: r.playerCount,
       spectators: r.spectators.length,
       phase: r.phaseLabel(),

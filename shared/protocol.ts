@@ -111,11 +111,38 @@ export interface GameStateView {
   winReason?: string;
 }
 
+// ── 大廳（v3）─────────────────────────────────────────
+export type LobbyPlayerStatus = 'lobby' | 'queued' | 'playing';
+
+export interface LobbyPlayer {
+  username: string;
+  elo: number;
+  status: LobbyPlayerStatus;
+}
+
+export interface LobbyMatch {
+  code: string;
+  blue: string;
+  red: string;
+  round: number;
+  phase: Phase;
+  spectators: number;
+}
+
+export interface LobbySnapshot {
+  players: LobbyPlayer[];
+  matches: LobbyMatch[];
+  queueSize: number;
+}
+
 // ── 客戶端→伺服器 ─────────────────────────────────────
 export type ClientMsg =
-  | { type: 'createRoom'; payload: { name: string } }
-  | { type: 'joinRoom'; payload: { code: string; name: string } }
-  | { type: 'spectate'; payload: { code: string; name: string } }
+  | { type: 'joinLobby'; payload: Record<string, never> }
+  | { type: 'queueJoin'; payload: Record<string, never> }
+  | { type: 'queueLeave'; payload: Record<string, never> }
+  | { type: 'invite'; payload: { to: string } }
+  | { type: 'inviteRespond'; payload: { id: string; accept: boolean } }
+  | { type: 'spectate'; payload: { code: string } }
   | { type: 'chat'; payload: { text: string } }
   | { type: 'submitCard'; payload: { card: CardId | null; target?: RegionId } }
   | { type: 'submitDeploy'; payload: { allocations: Record<string, number> } }
@@ -123,7 +150,9 @@ export type ClientMsg =
 
 // ── 伺服器→客戶端 ─────────────────────────────────────
 export type ServerMsg =
-  | { type: 'roomCreated'; payload: { code: string; seat: 'blue' | 'red' } }
+  | { type: 'lobby'; payload: { snapshot: LobbySnapshot } }
+  | { type: 'invited'; payload: { id: string; from: string } }
+  | { type: 'inviteResult'; payload: { id: string; accepted: boolean } }
   | { type: 'joined'; payload: { code: string; seat: 'blue' | 'red' } }
   | { type: 'spectating'; payload: { code: string } }
   | { type: 'error'; payload: { message: string } }
