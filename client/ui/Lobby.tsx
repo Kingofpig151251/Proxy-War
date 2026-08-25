@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react';
 import { store } from '../store.js';
 import { useStore } from './useStore.js';
-import { EmojiIcon } from './EmojiIcon.tsx';
+import { Icon } from './icons.js';
 
 interface LeaderRow {
   username: string;
@@ -48,7 +48,7 @@ export function Lobby({ me }: { me: string }) {
     <div className="lobby">
       <header className="topbar">
         <span className="room-code">
-          <EmojiIcon emoji="⚔" size={18} /> PROXY WAR
+          <Icon name="sword" size={18} /> PROXY WAR
         </span>
         <span className="phase-label">指揮官：{me}</span>
         <button
@@ -57,11 +57,11 @@ export function Lobby({ me }: { me: string }) {
         >
           {s.queued ? (
             <>
-              <EmojiIcon emoji="⏳" size={16} /> 取消匹配（佇列 {snap.queueSize}）
+              <Icon name="hourglass" size={16} /> 取消匹配（佇列 {snap.queueSize}）
             </>
           ) : (
             <>
-              <EmojiIcon emoji="⚡" size={16} /> 快速匹配
+              <Icon name="zap" size={16} /> 快速匹配
             </>
           )}
         </button>
@@ -71,7 +71,7 @@ export function Lobby({ me }: { me: string }) {
         <div className="panel invite-tray">
           {s.invites.map((inv) => (
             <div key={inv.id} className="invite-row">
-              <EmojiIcon emoji="🎖️" size={16} /> {inv.from} 邀你對局
+              <Icon name="medal" size={16} /> {inv.from} 邀你對局
               <button
                 className="primary"
                 onClick={() => {
@@ -97,7 +97,7 @@ export function Lobby({ me }: { me: string }) {
 
       <div className="lobby-grid">
         <section className="panel">
-          <h3><EmojiIcon emoji="🔵" size={18} /> 在線玩家（{snap.players.length}）</h3>
+          <h3><Icon name="dotBlue" size={18} /> 在線玩家（{snap.players.length}）</h3>
           <ul className="lobby-list">
             {snap.players.map((p) => {
               const isMe = p.username === me;
@@ -123,7 +123,7 @@ export function Lobby({ me }: { me: string }) {
         </section>
 
         <section className="panel">
-          <h3><EmojiIcon emoji="📺" size={18} /> 進行中對局</h3>
+          <h3><Icon name="eye" size={18} /> 進行中對局</h3>
           <ul className="lobby-list">
             {snap.matches.map((m) => (
               <li key={m.code}>
@@ -143,7 +143,7 @@ export function Lobby({ me }: { me: string }) {
         </section>
 
         <section className="panel">
-          <h3><EmojiIcon emoji="🏆" size={18} /> 排行榜</h3>
+          <h3><Icon name="trophy" size={18} /> 排行榜</h3>
           <ol className="lobby-list ranked">
             {board.map((row, i) => (
               <li key={row.username}>

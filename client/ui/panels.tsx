@@ -2,13 +2,13 @@
  * 行動面板：選卡、預算分配、上回合戰報、終局、等待、聊天。
  * 全部資料由 GameStateView 驅動；發送經 store（ClientMsg 協議）。
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { CardId, GameStateView, RegionId } from '../../shared/protocol.js';
 import { REGION_ORDER } from '../../shared/protocol.js';
 import { CARDS, REGIONS } from '../cards.js';
 import { store } from '../store.js';
 import { useStore } from './useStore.js';
-import { EmojiIcon } from './EmojiIcon.tsx';
+import { Icon } from './icons.js';
 
 // ── 選卡 ────────────────────────────────────────────
 export function CardPicker({
@@ -37,26 +37,48 @@ export function CardPicker({
   /** 不出卡也是一種策略：保留國庫 */
   const pass = () => store.send({ type: 'submitCard', payload: { card: null } });
 
+  // 鍵盤快捷鍵：1-6 選卡、Enter 確認、Esc 取消選擇
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement) return; // 聊天輸入中
+      const n = Number(e.key);
+      if (n >= 1 && n <= cardsLeft.length) {
+        setSelected(cardsLeft[n - 1]);
+      } else if (e.key === 'Enter') {
+        submit();
+      } else if (e.key === 'Escape') {
+        setSelected(null);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
   return (
     <div className="panel card-pick">
       <div className="panel-head">
         <h3>
-          <EmojiIcon emoji="🃏" size={20} /> 揀本回合行動卡
+          <Icon name="cards" size={20} /> 選擇本回合行動卡
         </h3>
         <span className="res">
           國庫 ${treasury}
-          {frozen > 0 && ` · <EmojiIcon emoji="🧊" size={16} />凍結 $${frozen}`}
+          {frozen > 0 && (
+            <>
+              {' '}· <Icon name="snowflake" size={16} /> 凍結 ${frozen}
+            </>
+          )}
         </span>
       </div>
       <div className="hand">
-        {cardsLeft.map((c) => (
+        {cardsLeft.map((c, idx) => (
           <button
             key={c}
             className={`action-card ${selected === c ? 'selected' : ''}`}
             onClick={() => setSelected(c)}
             title={CARDS[c].desc}
           >
-            <span className="ac-icon">{CARDS[c].icon}</span>
+            <span className="ac-hotkey">{idx + 1}</span>
+            <span className="ac-icon"><Icon name={CARDS[c].icon} size={28} /></span>
             <span className="ac-name">{CARDS[c].name}</span>
             <span className="ac-desc">{CARDS[c].desc}</span>
           </button>
@@ -125,7 +147,7 @@ export function DeployPanel({ treasury }: { treasury: number }) {
     <div className="panel deploy">
       <div className="panel-head">
         <h3>
-          <EmojiIcon emoji="💰" size={20} /> 分配戰爭預算
+          <Icon name="coin" size={20} /> 分配戰爭預算
         </h3>
         <span className={`res ${left < 0 ? 'neg' : ''}`}>剩餘 ${left}</span>
       </div>
@@ -133,7 +155,7 @@ export function DeployPanel({ treasury }: { treasury: number }) {
         {REGION_ORDER.map((r) => (
           <div key={r} className="alloc-row">
             <span className="ar-name">
-              {REGIONS[r].icon} {REGIONS[r].name}
+              <Icon name={REGIONS[r].icon} size={16} /> {REGIONS[r].name}
               <small>{REGIONS[r].vp}VP</small>
             </span>
             <button onClick={() => bump(r, -5)} disabled={alloc[r] === 0}>−5</button>
@@ -169,17 +191,17 @@ export function LastRoundReport({ v }: { v: GameStateView }) {
   return (
     <div className="panel report">
       <h3>
-        <EmojiIcon emoji="📋" size={20} /> 第 {s.round} 回合戰報
+        <Icon name="doc" size={20} /> 第 {s.round} 回合戰報
       </h3>
       <ul className="formula-list">
         {s.settlements.map((e) => (
           <li key={e.region}>
-            <b>{e.region}</b>：藍 {e.blueSpend}→{e.blueEffective} vs 紅 {e.redSpend}→
+            <b>{REGIONS[e.region as RegionId]?.name ?? e.region}</b>：藍 {e.blueSpend}→{e.blueEffective} vs 紅 {e.redSpend}→
             {e.redEffective} ——{' '}
             {e.winner ? (
-              <EmojiIcon emoji={e.winner === 'blue' ? '🔵' : '🔴'} size={14} />
+              <Icon name={e.winner === 'blue' ? 'dotBlue' : 'dotRed'} size={14} />
             ) : (
-              <EmojiIcon emoji="⚖️" size={14} />
+              <Icon name="scale" size={14} />
             )}
             {e.formula.length > 0 && ` (${e.formula.join('; ')})`}
           </li>
@@ -204,25 +226,25 @@ export function EndPanel({ v }: { v: GameStateView }) {
       <h1>
         {win ? (
           <>
-            <EmojiIcon emoji="🏆" size={28} /> {win.name} 勝出！
+            <Icon name="trophy" size={28} /> {win.name} 勝出！
           </>
         ) : (
           <>
-            <EmojiIcon emoji="⚖️" size={28} /> 和局
+            <Icon name="scale" size={28} /> 和局
           </>
         )}
       </h1>
       <p className="reason">{v.winReason}</p>
       <p className="score-line">
-        <EmojiIcon emoji="🔵" size={18} /> {b.name} {b.score}VP — {r.score}VP {r.name}{' '}
-        <EmojiIcon emoji="🔴" size={18} />
+        <Icon name="dotBlue" size={18} /> {b.name} {b.score}VP — {r.score}VP {r.name}{' '}
+        <Icon name="dotRed" size={18} />
       </p>
       {v.yourSeat !== 'spectator' && (
         <button
           className="primary big"
           onClick={() => store.send({ type: 'playAgain', payload: {} })}
         >
-          <EmojiIcon emoji="🔄" size={18} /> 再來一場
+          <Icon name="refresh" size={18} /> 再來一場
         </button>
       )}
     </div>

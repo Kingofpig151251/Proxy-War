@@ -1,24 +1,30 @@
 /**
  * GameRoom — 牌桌主畫面：對手列、戰區、我方列、行動面板、聊天。
  */
-import { useState } from 'react';
-import type { CardId, GameStateView, Phase, PlayerPublic } from '../../shared/protocol.js';
+import { useState, useEffect } from 'react';
+import type { CardId, GameStateView, Phase, PlayerPublic, RegionId } from '../../shared/protocol.js';
 import { REGION_ORDER } from '../../shared/protocol.js';
 import { REGIONS } from '../cards.js';
 import { store } from '../store.js';
 import { useStore } from './useStore.js';
+import { useFlashOnChange, useCountUp } from './anim.js';
 import { CardPicker, ChatBox, DeployPanel, EndPanel, LastRoundReport } from './panels.js';
-import { EmojiIcon } from './EmojiIcon.tsx';
+import { Icon } from './icons.js';
 
-const PHASE_LABEL: Record<Phase, { emoji: string; text: string }> = {
-  lobby: { emoji: '🎖️', text: '大廳' },
-  cardSelect: { emoji: '🃏', text: '選卡' },
-  income: { emoji: '💰', text: '收入' },
-  reveal: { emoji: '🎭', text: '揭示' },
-  deploy: { emoji: '💰', text: '部署' },
-  settlement: { emoji: '⚖️', text: '結算' },
-  end: { emoji: '🏁', text: '終局' },
-};
+/** 五段回合 stepper：phase → 步驟序號（income/reveal 併入揭示段顯示） */
+const PHASE_STEPS: { key: string; label: string; icon: Parameters<typeof Icon>[0]['name'] }[] = [
+  { key: 'cardSelect', label: '選卡', icon: 'cards' },
+  { key: 'income', label: '收入', icon: 'coin' },
+  { key: 'reveal', label: '揭示', icon: 'sparkles' },
+  { key: 'deploy', label: '部署', icon: 'flag' },
+  { key: 'settlement', label: '結算', icon: 'scale' },
+];
+
+function phaseStepIndex(phase: Phase): number {
+  if (phase === 'end') return -1;
+  const i = PHASE_STEPS.findIndex((p) => p.key === phase);
+  return i === -1 ? 0 : i;
+}
 
 export function GameRoom() {
   const s = useStore();
@@ -36,7 +42,7 @@ export function GameRoom() {
       {s.error && <div className="toast error">{s.error}</div>}
       {s.revealToast && (
         <div className="toast reveal">
-          <EmojiIcon emoji="🎭" size={16} /> {s.revealToast}
+          <Icon name="sparkles" size={16} /> {s.revealToast}
         </div>
       )}
       <header className="topbar">
@@ -44,11 +50,11 @@ export function GameRoom() {
         <span className={`round-pill ${v.decisiveRound ? 'decisive' : ''}`}>
           第 {v.round}/4 回合{v.decisiveRound ? (
             <>
-              {' '}<EmojiIcon emoji="⚡" size={14} />決勝
+              {' '}<Icon name="zap" size={14} />決勝
             </>
           ) : null}
         </span>
-        <PhaseLabel phase={v.phase} />
+        <PhaseStepper phase={v.phase} round={v.round} />
         <button
           className="ghost small"
           onClick={() => {
@@ -56,7 +62,7 @@ export function GameRoom() {
           }}
           hidden={v.phase !== 'end'}
         >
-          <EmojiIcon emoji="🔄" size={16} /> 再來一場
+          <Icon name="refresh" size={16} /> 再來一場
         </button>
         <button className="ghost small" onClick={() => location.reload()}>
           離開
@@ -69,7 +75,7 @@ export function GameRoom() {
       <ActionPanel v={v} />
       {v.yourSeat === 'spectator' ? (
         <div className="spectator-badge">
-          <EmojiIcon emoji="👁️" size={16} /> 旁觀模式
+          <Icon name="eye" size={16} /> 旁觀模式
         </div>
       ) : (
         <ChatBox />
@@ -78,12 +84,21 @@ export function GameRoom() {
   );
 }
 
-function PhaseLabel({ phase }: { phase: Phase }) {
-  const info = PHASE_LABEL[phase] ?? { emoji: '⏳', text: phase };
+function PhaseStepper({ phase, round }: { phase: Phase; round: number }) {
+  const cur = phaseStepIndex(phase);
   return (
-    <span className="phase-label">
-      <EmojiIcon emoji={info.emoji} size={16} /> {info.text}
-    </span>
+    <div className="phase-stepper" role="status">
+      {PHASE_STEPS.map((step, i) => (
+        <div
+          key={step.key}
+          className={`ps-step ${i === cur ? 'current' : ''} ${i < cur ? 'done' : ''}`}
+          aria-current={i === cur ? 'step' : undefined}
+        >
+          <Icon name={step.icon} size={14} />
+          <span>{step.label}</span>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -97,50 +112,76 @@ function Regions({ v }: { v: GameStateView }) {
         const cls = ctrl === 'blue' ? 'ctrl-blue' : ctrl === 'red' ? 'ctrl-red' : '';
         const ctrlName = ctrl === 'blue' ? blue.name : ctrl === 'red' ? red.name : '';
         return (
-          <div key={rid} className={`region ${cls}`}>
-            <div className="region-icon">{REGIONS[rid].icon}</div>
-            <div className="region-name">{REGIONS[rid].name}</div>
-            <div className="region-vp">
-              {REGIONS[rid].vp} VP · +${REGIONS[rid].income}/回合
-            </div>
-            <div className={`controller ${!ctrl ? 'neutral' : ''}`}>
-              {!ctrl ? (
-                '中立'
-              ) : (
-                <>
-                  <EmojiIcon emoji={ctrl === 'blue' ? '🔵' : '🔴'} size={16} /> {ctrlName}
-                </>
-              )}
-            </div>
-          </div>
+          <RegionCell
+            key={rid}
+            rid={rid}
+            cls={cls}
+            ctrl={ctrl}
+            ctrlName={ctrlName}
+          />
         );
       })}
     </div>
   );
 }
 
+/** 單一戰區：包 flash hook（控制權變更時邊框閃爍） */
+function RegionCell({
+  rid,
+  cls,
+  ctrl,
+  ctrlName,
+}: {
+  rid: RegionId;
+  cls: string;
+  ctrl: string | null;
+  ctrlName: string;
+}) {
+  const flash = useFlashOnChange(ctrl);
+  return (
+    <div className={`region ${cls} ${flash}`}>
+      <div className="region-icon"><Icon name={REGIONS[rid].icon} size={30} /></div>
+      <div className="region-name">{REGIONS[rid].name}</div>
+      <div className="region-vp">
+        {REGIONS[rid].vp} VP · +${REGIONS[rid].income}/回合
+      </div>
+      <div className={`controller ${!ctrl ? 'neutral' : ''}`}>
+        {!ctrl ? (
+          '中立'
+        ) : (
+          <>
+            <Icon name={ctrl === 'blue' ? 'dotBlue' : 'dotRed'} size={16} /> {ctrlName}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function PlayerBar({ p, you }: { p: PlayerPublic; you: boolean }) {
+  const treasury = useCountUp(p.treasury);
+  const score = useCountUp(p.score);
   return (
     <div className={`player-bar ${p.id === 'blue' ? 'pb-blue' : 'pb-red'} ${you ? 'is-you' : ''}`}>
       <span className="pname">
-        <EmojiIcon emoji={p.id === 'blue' ? '🔵' : '🔴'} size={16} /> {p.name}
+        <Icon name={p.id === 'blue' ? 'dotBlue' : 'dotRed'} size={16} /> {p.name}
         {you && '（你）'}
         {!p.connected && (
           <span className="dc-warn">
             {' '}
-            <EmojiIcon emoji="⚠️" size={14} /> 斷線
+            <Icon name="warn" size={14} /> 斷線
           </span>
         )}
       </span>
-      <span className="stat"><EmojiIcon emoji="💰" size={16} /> ${p.treasury}</span>
-      <span className="stat"><EmojiIcon emoji="🏆" size={16} /> {p.score}VP</span>
+      <span className="stat"><Icon name="coin" size={16} /> ${treasury}</span>
+      <span className="stat"><Icon name="trophy" size={16} /> {score}VP</span>
       {p.debt > 0 && (
-        <span className="stat debt"><EmojiIcon emoji="📉" size={16} /> 債 ${p.debt}</span>
+        <span className="stat debt"><Icon name="trendDown" size={16} /> 債 ${p.debt}</span>
       )}
       {p.frozen > 0 && (
-        <span className="stat frozen"><EmojiIcon emoji="🧊" size={16} /> 凍 ${p.frozen}</span>
+        <span className="stat frozen"><Icon name="snowflake" size={16} /> 凍 ${p.frozen}</span>
       )}
-      <span className="cards-left"><EmojiIcon emoji="🃏" size={16} />{p.cardsLeft.length}</span>
+      <span className="cards-left"><Icon name="cards" size={16} />{p.cardsLeft.length}</span>
     </div>
   );
 }
@@ -182,7 +223,7 @@ function myCards(v: GameStateView): CardId[] {
 function Waiting({ text }: { text: string }) {
   return (
     <div className="panel waiting">
-      <h3><EmojiIcon emoji="⏳" size={20} /> {text}</h3>
+      <h3><Icon name="hourglass" size={20} /> {text}</h3>
     </div>
   );
 }

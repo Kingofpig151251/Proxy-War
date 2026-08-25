@@ -3,7 +3,7 @@ import { store } from '../store.js';
 import { useStore } from './useStore.js';
 import { Lobby } from './Lobby.js';
 import { GameRoom } from './GameRoom.js';
-import { EmojiIcon } from './EmojiIcon.tsx';
+import { Icon } from './icons.js';
 
 type Notice = React.ReactNode;
 
@@ -47,13 +47,13 @@ export function App() {
       setToken(data.token);
       setNotice(
         <>
-          <EmojiIcon emoji="✅" size={16} /> {mode === 'login' ? '登入' : '註冊'}成功，進入大廳
+          <Icon name="check" size={16} /> {mode === 'login' ? '登入' : '註冊'}成功，進入大廳
         </>,
       );
     } catch (e) {
       setNotice(
         <>
-          <EmojiIcon emoji="❌" size={16} /> {(e as Error).message}
+          <Icon name="xCircle" size={16} /> {(e as Error).message}
         </>,
       );
     } finally {
@@ -87,7 +87,7 @@ export function App() {
     } catch (e) {
       setNotice(
         <>
-          <EmojiIcon emoji="❌" size={16} /> {(e as Error).message}
+          <Icon name="xCircle" size={16} /> {(e as Error).message}
         </>,
       );
       setBusy(false);
@@ -104,7 +104,7 @@ export function App() {
   return (
     <div className="center-screen">
       <h1 className="title">
-        <EmojiIcon emoji="⚔" size={32} /> PROXY WAR
+        <Icon name="sword" size={32} /> PROXY WAR
       </h1>
       <p className="subtitle">代・理・戰・爭 — 戰爭經濟學心理博弈</p>
 
@@ -112,7 +112,7 @@ export function App() {
       {s.connecting && <div className="hint">連線中……</div>}
 
       <button className="primary big" onClick={quickPlay} disabled={busy}>
-        <EmojiIcon emoji="⚡" size={20} /> 一鍵體驗
+        <Icon name="zap" size={20} /> 一鍵體驗
       </button>
 
       <div className="panel join-box">
