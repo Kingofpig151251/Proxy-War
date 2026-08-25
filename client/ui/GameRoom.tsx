@@ -1,11 +1,24 @@
 /**
  * GameRoom — 牌桌主畫面：對手列、戰區、我方列、行動面板、聊天。
  */
-import { useEffect, useRef, useState } from 'react';
-import type { CardId, GameStateView, PlayerPublic } from '../../shared/protocol.js';
-import { CARDS, REGIONS, REGION_ORDER } from '../cards.js';
+import { useState } from 'react';
+import type { CardId, GameStateView, Phase, PlayerPublic } from '../../shared/protocol.js';
+import { REGION_ORDER } from '../../shared/protocol.js';
+import { REGIONS } from '../cards.js';
 import { store } from '../store.js';
 import { useStore } from './useStore.js';
+import { CardPicker, ChatBox, DeployPanel, EndPanel, LastRoundReport } from './panels.js';
+import { EmojiIcon } from './EmojiIcon.tsx';
+
+const PHASE_LABEL: Record<Phase, { emoji: string; text: string }> = {
+  lobby: { emoji: '🎖️', text: '大廳' },
+  cardSelect: { emoji: '🃏', text: '選卡' },
+  income: { emoji: '💰', text: '收入' },
+  reveal: { emoji: '🎭', text: '揭示' },
+  deploy: { emoji: '💰', text: '部署' },
+  settlement: { emoji: '⚖️', text: '結算' },
+  end: { emoji: '🏁', text: '終局' },
+};
 
 export function GameRoom() {
   const s = useStore();
@@ -13,7 +26,7 @@ export function GameRoom() {
   if (!v) {
     return (
       <div className="center-screen">
-        <h1>等待房間狀態…</h1>
+        <h1>等待房間狀態……</h1>
       </div>
     );
   }
@@ -21,11 +34,19 @@ export function GameRoom() {
   return (
     <div className="game-root">
       {s.error && <div className="toast error">{s.error}</div>}
-      {s.revealToast && <div className="toast reveal">🎭 {s.revealToast}</div>}
+      {s.revealToast && (
+        <div className="toast reveal">
+          <EmojiIcon emoji="🎭" size={16} /> {s.revealToast}
+        </div>
+      )}
       <header className="topbar">
         <span className="room-code">房間 {v.roomCode}</span>
         <span className={`round-pill ${v.decisiveRound ? 'decisive' : ''}`}>
-          第 {v.round}/4 回合{v.decisiveRound ? ' ⚡決勝' : ''}
+          第 {v.round}/4 回合{v.decisiveRound ? (
+            <>
+              {' '}<EmojiIcon emoji="⚡" size={14} />決勝
+            </>
+          ) : null}
         </span>
         <PhaseLabel phase={v.phase} />
         <button
@@ -35,7 +56,7 @@ export function GameRoom() {
           }}
           hidden={v.phase !== 'end'}
         >
-          再嚟一場
+          <EmojiIcon emoji="🔄" size={16} /> 再來一場
         </button>
         <button className="ghost small" onClick={() => location.reload()}>
           離開
@@ -47,7 +68,9 @@ export function GameRoom() {
       <PlayerBar p={blue} you={v.yourSeat === 'blue'} />
       <ActionPanel v={v} />
       {v.yourSeat === 'spectator' ? (
-        <div className="spectator-badge">👁️ 旁觀模式</div>
+        <div className="spectator-badge">
+          <EmojiIcon emoji="👁️" size={16} /> 旁觀模式
+        </div>
       ) : (
         <ChatBox />
       )}
@@ -55,14 +78,13 @@ export function GameRoom() {
   );
 }
 
-function PhaseLabel({ phase }: { phase: GameStateView['phase'] }) {
-  const map: Record<string, string> = {
-    cardSelect: '🃏 選卡',
-    deploy: '💰 部署',
-    settlement: '⚖️ 結算',
-    end: '🏁 終局',
-  };
-  return <span className="phase-label">{map[phase] ?? phase}</span>;
+function PhaseLabel({ phase }: { phase: Phase }) {
+  const info = PHASE_LABEL[phase] ?? { emoji: '⏳', text: phase };
+  return (
+    <span className="phase-label">
+      <EmojiIcon emoji={info.emoji} size={16} /> {info.text}
+    </span>
+  );
 }
 
 function Regions({ v }: { v: GameStateView }) {
@@ -73,6 +95,7 @@ function Regions({ v }: { v: GameStateView }) {
         const st = v.regions.find((r) => r.region === rid);
         const ctrl = st?.controller ?? null;
         const cls = ctrl === 'blue' ? 'ctrl-blue' : ctrl === 'red' ? 'ctrl-red' : '';
+        const ctrlName = ctrl === 'blue' ? blue.name : ctrl === 'red' ? red.name : '';
         return (
           <div key={rid} className={`region ${cls}`}>
             <div className="region-icon">{REGIONS[rid].icon}</div>
@@ -81,7 +104,13 @@ function Regions({ v }: { v: GameStateView }) {
               {REGIONS[rid].vp} VP · +${REGIONS[rid].income}/回合
             </div>
             <div className={`controller ${!ctrl ? 'neutral' : ''}`}>
-              {!ctrl ? '中立' : ctrl === 'blue' ? `🔵 ${blue.name}` : `🔴 ${red.name}`}
+              {!ctrl ? (
+                '中立'
+              ) : (
+                <>
+                  <EmojiIcon emoji={ctrl === 'blue' ? '🔵' : '🔴'} size={16} /> {ctrlName}
+                </>
+              )}
             </div>
           </div>
         );
@@ -94,15 +123,24 @@ function PlayerBar({ p, you }: { p: PlayerPublic; you: boolean }) {
   return (
     <div className={`player-bar ${p.id === 'blue' ? 'pb-blue' : 'pb-red'} ${you ? 'is-you' : ''}`}>
       <span className="pname">
-        {p.id === 'blue' ? '🔵' : '🔴'} {p.name}
+        <EmojiIcon emoji={p.id === 'blue' ? '🔵' : '🔴'} size={16} /> {p.name}
         {you && '（你）'}
-        {!p.connected && '⚠️斷線'}
+        {!p.connected && (
+          <span className="dc-warn">
+            {' '}
+            <EmojiIcon emoji="⚠️" size={14} /> 斷線
+          </span>
+        )}
       </span>
-      <span className="stat">💰 ${p.treasury}</span>
-      <span className="stat">🏆 {p.score}VP</span>
-      {p.debt > 0 && <span className="stat debt">📉 債 ${p.debt}</span>}
-      {p.frozen > 0 && <span className="stat frozen">🧊 凍 ${p.frozen}</span>}
-      <span className="cards-left">🃏{p.cardsLeft.length}</span>
+      <span className="stat"><EmojiIcon emoji="💰" size={16} /> ${p.treasury}</span>
+      <span className="stat"><EmojiIcon emoji="🏆" size={16} /> {p.score}VP</span>
+      {p.debt > 0 && (
+        <span className="stat debt"><EmojiIcon emoji="📉" size={16} /> 債 ${p.debt}</span>
+      )}
+      {p.frozen > 0 && (
+        <span className="stat frozen"><EmojiIcon emoji="🧊" size={16} /> 凍 ${p.frozen}</span>
+      )}
+      <span className="cards-left"><EmojiIcon emoji="🃏" size={16} />{p.cardsLeft.length}</span>
     </div>
   );
 }
@@ -110,10 +148,10 @@ function PlayerBar({ p, you }: { p: PlayerPublic; you: boolean }) {
 // ── 行動面板 ────────────────────────────────────────
 function ActionPanel({ v }: { v: GameStateView }) {
   if (v.phase === 'end') return <EndPanel v={v} />;
-  if (v.yourSeat === 'spectator') return null;
+  if (v.yourSeat === 'spectator') return <LastRoundReport v={v} />;
 
   if (v.phase === 'cardSelect') {
-    if (v.youSubmittedCard) return <Waiting text="卡已提交，等對手…" />;
+    if (v.youSubmittedCard) return <Waiting text="卡已提交，等待對手……" />;
     return (
       <CardPicker
         treasury={v.yourTreasury ?? 0}
@@ -123,15 +161,19 @@ function ActionPanel({ v }: { v: GameStateView }) {
     );
   }
   if (v.phase === 'deploy') {
-    if (v.youSubmittedDeploy) return <Waiting text="部署已確認，等對手…" />;
+    if (v.youSubmittedDeploy) return <Waiting text="部署已確認，等待對手……" />;
     // 可用＝國庫 − 凍結
-    return <Deployer treasury={Math.max((v.yourTreasury ?? 0) - (v.yourFrozen ?? 0), 0)} />;
+    return (
+      <DeployPanel
+        treasury={Math.max((v.yourTreasury ?? 0) - (v.yourFrozen ?? 0), 0)}
+      />
+    );
   }
-  // settlement / 其他：睇戰報
+  // income / reveal / settlement：顯示戰報
   return <LastRoundReport v={v} />;
 }
 
-/** 我嘅手牌＝自己嗰邊嘅 cardsLeft */
+/** 我的手牌＝自己一側的 cardsLeft */
 function myCards(v: GameStateView): CardId[] {
   const me = v.players.find((p) => p.id === v.yourSeat);
   return me?.cardsLeft ?? [];
@@ -140,7 +182,7 @@ function myCards(v: GameStateView): CardId[] {
 function Waiting({ text }: { text: string }) {
   return (
     <div className="panel waiting">
-      <h3>⏳ {text}</h3>
+      <h3><EmojiIcon emoji="⏳" size={20} /> {text}</h3>
     </div>
   );
 }

@@ -36,7 +36,7 @@ export async function recordMatch(
   await repo.recordResult(blue.username, winner === 'blue' ? 'win' : winner === null ? 'draw' : 'loss', dBlue);
   await repo.recordResult(red.username, winner === 'red' ? 'win' : winner === null ? 'draw' : 'loss', dRed);
 
-  // 對局紀錄（排行榜明細用）；失敗唔影響遊戲
+  // 對局紀錄（排行榜明細用）；失敗不影響遊戲
   try {
     await repo.appendMatch?.({
       playedAt: new Date(),

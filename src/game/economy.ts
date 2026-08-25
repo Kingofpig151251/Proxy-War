@@ -57,7 +57,7 @@ export function effectiveValue(
 export interface IncomeResult {
   total: number;
   parts: string[];
-  /** 油價戰目標區（被歸零嗰區）— 記錄用 */
+  /** 油價戰目標區（被歸零的區域）— 記錄用 */
   zeroedRegion?: RegionId;
 }
 

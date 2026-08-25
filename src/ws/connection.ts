@@ -118,7 +118,7 @@ export class ConnectionHub {
           const code = String(m.payload.code ?? '').toUpperCase();
           const room = this.manager.get(code);
           if (!room) {
-            this.send(s, { type: 'error', payload: { message: '搵唔到房間' } });
+            this.send(s, { type: 'error', payload: { message: '找不到房間' } });
             return;
           }
           this.joinAsPlayer(s, code);
@@ -129,7 +129,7 @@ export class ConnectionHub {
           s.name = String(m.payload.name).slice(0, 24);
           const room = this.manager.get(String(m.payload.code ?? ''));
           if (!room) {
-            this.send(s, { type: 'error', payload: { message: '搵唔到房間' } });
+            this.send(s, { type: 'error', payload: { message: '找不到房間' } });
             return;
           }
           this.leaveCurrent(s);
@@ -155,7 +155,7 @@ export class ConnectionHub {
           const room = s.roomCode ? this.manager.get(s.roomCode) : null;
           const seat = room?.seatOf(s.id);
           if (!room || !seat) {
-            this.send(s, { type: 'error', payload: { message: '你唔係玩家' } });
+            this.send(s, { type: 'error', payload: { message: '你不是玩家' } });
             return;
           }
           const card = (m.payload as { card?: unknown })?.card;
@@ -180,7 +180,7 @@ export class ConnectionHub {
           const room = s.roomCode ? this.manager.get(s.roomCode) : null;
           const seat = room?.seatOf(s.id);
           if (!room || !seat) {
-            this.send(s, { type: 'error', payload: { message: '你唔係玩家' } });
+            this.send(s, { type: 'error', payload: { message: '你不是玩家' } });
             return;
           }
           const alloc = (m.payload as { allocations?: Record<string, unknown> }).allocations;
@@ -251,7 +251,7 @@ export class ConnectionHub {
   }
 }
 
-/** 將 Session 包裝成 Room 需要嘅 Conn */
+/** 將 Session 包裝成 Room 需要的 Conn */
 function wrapConn(s: Session): import('../game/Room.js').Conn {
   return {
     get id() {

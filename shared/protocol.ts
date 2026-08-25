@@ -97,7 +97,7 @@ export interface GameStateView {
   decisiveRound: boolean;
   players: PlayerPublic[]; // [blue, red]
   regions: RegionState[];
-  /** 你嘅視角：秘密資訊只會出現在 secret 區 */
+  /** 你的視角：秘密資訊只會出現在 secret 區 */
   yourSeat: 'blue' | 'red' | 'spectator';
   yourTreasury: number | null;
   yourFrozen: number | null;

@@ -25,7 +25,7 @@ describe('AuthService', () => {
     expect(svc.verify(login.token).username).toBe('hunter_2');
   });
 
-  it('密碼有 hash 唔存明文', async () => {
+  it('密碼存 hash 不存明文', async () => {
     await svc.register('hashcheck', 'supersecret99');
     const u = await R.find('hashcheck');
     expect(u!.passHash).not.toContain('supersecret99');

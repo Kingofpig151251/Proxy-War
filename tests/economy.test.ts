@@ -80,16 +80,16 @@ describe('階段1 收入', () => {
     expect(r.zeroedRegion).toBe('industrial');
   });
 
-  it('只有「對手」出嘅卡先影響我收入', () => {
+  it('只有「對手」出的卡才影響我方收入', () => {
     const r = computeIncome(mkPlayer(), { card: null }, ['industrial']);
     const oppPlayedSanctionsOnMe = computeIncome(mkPlayer(), { card: 'sanctions' }, ['industrial']);
-    expect(r.total).toBe(50); // 對手冇出卡：20+30
+    expect(r.total).toBe(50); // 對手未出卡：20+30
     expect(oppPlayedSanctionsOnMe.total).toBe(35); // 20+15
   });
 });
 
 describe('提交驗證', () => {
-  it('手牌冇嘅卡拒絕', () => {
+  it('使用不在手牌中的卡遭拒絕', () => {
     const p = mkPlayer({ hand: new Set(['warBonds' as const]) });
     expect(validateCardSubmission({ card: 'sanctions' }, p)).toMatchObject({ ok: false });
     expect(validateCardSubmission({ card: 'warBonds' }, p)).toMatchObject({ ok: true });
@@ -176,7 +176,7 @@ describe('結算', () => {
     expect(res.vpGain.red).toBe(0);
   });
 
-  it('§3.4 後果：同額投入，被折減嘅防守方反而輸', () => {
+  it('§3.4 後果：同額投入，被折減的防守方反而落敗', () => {
     const ctx = baseCtx();
     ctx.controllers.capital = 'red';
     ctx.allocations.blue.capital = 20; // 攻方全額
@@ -186,7 +186,7 @@ describe('結算', () => {
     expect(res.entry.outcome).toBe('flip');
   });
 
-  it('易手（flip）：折減後守唔住', () => {
+  it('易手（flip）：折減後守不住', () => {
     const ctx = baseCtx();
     ctx.controllers.industrial = 'red';
     // red 守 32 → 有效 20；blue 攻 21 → 21>20 flip

@@ -116,7 +116,7 @@ function makeMongoRepo(db: Db): UserRepo {
   };
 }
 
-/** 連唔上 DB 就退記憶體模式——遊戲永遠玩到，統計暫時不持久 */
+/** 無法連上 DB 即退回記憶體模式——遊戲始終可玩，統計暫不持久 */
 export async function openUserRepo(client: MongoClient | null): Promise<UserRepo> {
   if (!client) return makeMemoryRepo();
   try {

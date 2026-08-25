@@ -1,7 +1,7 @@
 /**
  * PROXY WAR v2 伺服器主入口。
  * Express（HTTP auth/排行榜/靜態前端）+ ws（WebSocket 遊戲）同一 port。
- * MongoDB 可選：連唔上自動退記憶體模式，遊戲照玩。
+ * MongoDB 可選：連不上自動退回記憶體模式，遊戲照常運行。
  */
 import http from 'node:http';
 import path from 'node:path';
@@ -63,7 +63,7 @@ async function main(): Promise<void> {
     }
   });
   wss.on('connection', (ws, req) => {
-    // token 走 query param：/ws?token=xxx（瀏覽器 WS 唔支援自訂 header）
+    // token 經 query param 傳送：/ws?token=xxx（瀏覽器 WS 不支援自訂 header）
     const url = new URL(req.url ?? '/', 'http://localhost');
     hub.attach(ws, url.searchParams.get('token'));
   });

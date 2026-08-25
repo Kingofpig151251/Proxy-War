@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { store } from '../store.js';
 import { useStore } from './useStore.js';
+import { EmojiIcon } from './EmojiIcon.tsx';
 
 export function Lobby({ name }: { name: string }) {
   const [code, setCode] = useState('');
@@ -19,7 +20,7 @@ export function Lobby({ name }: { name: string }) {
           className="primary big"
           onClick={() => store.send({ type: 'createRoom', payload: { name } })}
         >
-          🎖️ 開新房間
+          <EmojiIcon emoji="🎖️" size={20} /> 開新房間
         </button>
         <div className="join-row">
           <input

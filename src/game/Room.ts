@@ -1,6 +1,6 @@
 /**
  * Room + RoomManager — 多房間生命週期。
- * 唔掂 WebSocket 傳輸細節（由 connection.ts 做 adapter），只處理遊戲流程與廣播。
+ * 不觸及 WebSocket 傳輸細節（由 connection.ts 擔任 adapter），只處理遊戲流程與廣播。
  */
 import type {
   CardId,
@@ -115,10 +115,10 @@ export class Room {
   private resignByDisconnect(): void {
     const g = this.game;
     if (g.finished) return;
-    // 邊個走咗就邊個輸：檢查兩個 slot
+    // 哪一方離開即哪一方判負：檢查兩個 slot
     const blueGone = this.blue.member === null;
     const redGone = this.red.member === null;
-    if (blueGone === redGone) return; // 冇人走或雙方都走——唔判
+    if (blueGone === redGone) return; // 無人離開或雙方皆離開——不判定
     g.finished = true;
     g.winner = blueGone ? 'red' : 'blue';
     g.winReason = '對手中斷線，棄賽判負';
@@ -147,7 +147,7 @@ export class Room {
     const r = this.game.submitCard(seat, play);
     if (!r.ok) return r;
 
-    // 對方已交卡而而家齊——推進收入揭示
+    // 對方已交卡且此刻齊備——推進收入揭示
     if (this.game.hasCardPhasePending()) {
       return { ok: true };
     }
@@ -197,7 +197,7 @@ export class Room {
     }
   }
 
-  /** 再嚟一場（重置 Game；保留座位） */
+  /** 再來一場（重置 Game；保留座位） */
   rematch(): void {
     const bn = this.blue.member?.name ?? '藍方';
     const rn = this.red.member?.name ?? '紅方';

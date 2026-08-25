@@ -1,5 +1,5 @@
 /**
- * WS 客戶端 + 全域狀態 store（極簡：唔引 redux/zustand）。
+ * WS 客戶端 + 全域狀態 store（極簡：不引入 redux/zustand）。
  */
 import type { ClientMsg, GameStateView, ServerMsg } from '../../shared/protocol.js';
 

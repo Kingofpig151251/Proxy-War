@@ -4,7 +4,7 @@ services:
     ports:
       - '3000:3000'
     environment:
-      # JWT_SECRET 必須由 .env 或環境提供，唔會用預設值起動
+      # JWT_SECRET 必須由 .env 或環境提供，不使用預設值啟動
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET required in .env}
       - PORT=3000
       - MONGO_URL=mongodb://mongo:27017/proxywar

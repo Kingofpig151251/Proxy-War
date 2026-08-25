@@ -1,137 +1,121 @@
-/**
- * App — 頂層：連線畫面（含帳號登入/註冊）→ 大廳 → 房間。
- */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { store } from '../store.js';
 import { useStore } from './useStore.js';
 import { Lobby } from './Lobby.js';
 import { GameRoom } from './GameRoom.js';
+import { EmojiIcon } from './EmojiIcon.tsx';
 
 export function App() {
   const s = useStore();
-  const [name, setName] = useState(sessionStorage.getItem('pw_name') ?? '');
-  const [token, setToken] = useState(localStorage.getItem('pw_token') ?? '');
-  const [phase, setPhase] = useState<'connect' | 'in'>('connect');
-
-  if (phase === 'connect') {
-    return (
-      <ConnectScreen
-        name={name}
-        setName={setName}
-        token={token}
-        setToken={setToken}
-        onEnter={(finalToken, finalName) => {
-          sessionStorage.setItem('pw_name', finalName);
-          store.connect(finalName, finalToken || null);
-          setPhase('in');
-        }}
-      />
-    );
-  }
-
-  if (!s.connected) {
-    return (
-      <div className="center-screen">
-        <h1>{s.connecting ? '連線中…' : '連線中斷'}</h1>
-        {!s.connecting && (
-          <>
-            <p className="hint">伺服器斷開或網絡問題</p>
-            <button className="primary" onClick={() => location.reload()}>
-              返回重試
-            </button>
-          </>
-        )}
-      </div>
-    );
-  }
-  return s.screen === 'room' ? <GameRoom /> : <Lobby name={name} />;
-}
-
-function ConnectScreen({
-  name,
-  setName,
-  token,
-  setToken,
-  onEnter,
-}: {
-  name: string;
-  setName: (v: string) => void;
-  token: string;
-  setToken: (v: string) => void;
-  onEnter: (token: string, name: string) => void;
-}) {
-  const [user, setUser] = useState(localStorage.getItem('pw_user') ?? '');
-  const [pass, setPass] = useState('');
-  const [msg, setMsg] = useState<string | null>(null);
+  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [user, setUser] = useState('');
+  const [name, setName] = useState('');
+  const [token, setToken] = useState(localStorage.getItem('pw_token') || '');
+  /** 提示訊息：字串或 JSX（帶 icon） */
+  const [msg, setMsg] = useState<React.ReactNode>('');
   const [busy, setBusy] = useState(false);
 
-  /** 有帳號就先認證；否則純訪客 */
-  const doAuth = async (mode: 'login' | 'register') => {
+  useEffect(() => {
+    if (token) {
+      store.send({ type: 'auth', payload: { token } });
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (s.error) {
+      setMsg(s.error);
+      setBusy(false);
+    }
+  }, [s.error]);
+
+  const submit = async () => {
+    if (!user || !name) return;
+    setMsg('');
     setBusy(true);
-    setMsg(null);
     try {
-      const res = await fetch(`/api/auth/${mode}`, {
+      // 相對路徑經 vite proxy／生產反代轉發，不寫死 host
+      const res = await fetch(`/api/${mode}`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ username: user, password: pass }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user, name }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? '失敗');
-      localStorage.setItem('pw_token', data.token);
+      if (!res.ok) throw new Error(data.error || '操作失敗');
       localStorage.setItem('pw_user', user);
+      localStorage.setItem('pw_token', data.token);
       setToken(data.token);
-      if (!name) setName(user);
-      setMsg(`✅ ${mode === 'login' ? '登入' : '註冊'}成功——對局會計入排行榜`);
+      setMsg(
+        <>
+          <EmojiIcon emoji="✅" size={16} /> {mode === 'login' ? '登入' : '註冊'}成功——對局將計入排行榜
+        </>,
+      );
     } catch (e) {
-      setMsg(`❌ ${(e as Error).message}`);
+      setMsg(
+        <>
+          <EmojiIcon emoji="❌" size={16} /> {(e as Error).message}
+        </>,
+      );
     } finally {
       setBusy(false);
     }
   };
 
-  const guest = () => onEnter(token, name || `訪客${Date.now() % 1000}`);
+  if (s.screen === 'room') {
+    return <GameRoom />;
+  }
 
   return (
     <div className="center-screen">
-      <h1 className="title">⚔️ PROXY WAR</h1>
+      <h1 className="title">
+        <EmojiIcon emoji="⚔" size={32} /> PROXY WAR
+      </h1>
       <p className="subtitle">代・理・戰・爭 — 戰爭經濟學心理博弈</p>
 
+      {msg && <div className="toast">{msg}</div>}
+
       <div className="panel join-box">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="對內顯示嘅指揮官代號"
-          maxLength={24}
-        />
-        {token && <p className="hint ok">已有帳號憑證，直接進入即計排行榜</p>}
-        <button className="primary big" disabled={!name.trim()} onClick={() => onEnter(token, name.trim())}>
-          進入戰區 →
-        </button>
+        <details open>
+          <summary>{mode === 'login' ? '登入' : '註冊'}帳戶</summary>
+          <div className="acct-box">
+            <input
+              placeholder="用戶名"
+              value={user}
+              onChange={(e) => setUser(e.target.value)}
+              disabled={busy}
+            />
+            <input
+              placeholder="顯示名稱"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              disabled={busy}
+            />
+            <div className="btn-row">
+              <button className="primary" onClick={submit} disabled={busy || !user || !name}>
+                {mode === 'login' ? '登入' : '註冊'}
+              </button>
+              <button className="ghost" onClick={() => setMode(mode === 'login' ? 'register' : 'login')}>
+                切換到{mode === 'login' ? '註冊' : '登入'}
+              </button>
+            </div>
+          </div>
+        </details>
+        <details>
+          <summary>遊覽模式</summary>
+          <button
+            className="ghost big"
+            onClick={() => {
+              setToken('guest');
+              store.send({ type: 'spectate', payload: {} });
+            }}
+          >
+            <EmojiIcon emoji="👁️" size={20} /> 旁觀對局
+          </button>
+        </details>
       </div>
 
-      <details className="panel acct-box" open={!token}>
-        <summary>{token ? '帳號（已登入）' : '排行榜需要帳號（可選）'}</summary>
-        <input value={user} onChange={(e) => setUser(e.target.value)} placeholder="帳號（3-16 英數）" maxLength={16} />
-        <input
-          type="password"
-          value={pass}
-          onChange={(e) => setPass(e.target.value)}
-          placeholder="密碼（≥8 碼）"
-          onKeyDown={(e) => e.key === 'Enter' && user && pass.length >= 8 && !busy && doAuth('login')}
-        />
-        <div className="btn-row">
-          <button disabled={busy || !user || pass.length < 8} onClick={() => doAuth('login')}>
-            登入
-          </button>
-          <button className="ghost" disabled={busy || !user || pass.length < 8} onClick={() => doAuth('register')}>
-            註冊新帳號
-          </button>
-        </div>
-        {msg && <p className="hint">{msg}</p>}
-        <p className="hint">唔登入都得——訪客照玩，只係唔計排行。</p>
-      </details>
-
-      <p className="hint">4 回合 · 4 戰區 · 6 張行動卡 · 虛張聲勢者勝</p>
+      <div className="lobby-actions">
+        <Lobby name={name || '匿名玩家'} />
+      </div>
     </div>
   );
 }

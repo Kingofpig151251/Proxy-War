@@ -1,7 +1,7 @@
 /**
  * Game — 單場對局狀態機（DESIGN.md §3.3 定案時序）。
  * 回合開始同時密秘選卡 → 收入（插效果）→ 揭示（即時效果）→ 部署 → 結算（鎮壓折減）→ 回合末。
- * 純規則：唔掂 WebSocket、唔計時；由 Room 驅動。
+ * 純規則：不觸及 WebSocket、不計時；由 Room 驅動。
  */
 import type {
   CardId,
@@ -82,7 +82,7 @@ export class Game {
   ): { ok: true } | { ok: false; reason: string } {
     if (this.finished || this.round === 0) return { ok: false, reason: '對局未進行中' };
     const p = this.players[seat];
-    if (this.phase() !== 'deploy') return { ok: false, reason: '而家唔係部署階段' };
+    if (this.phase() !== 'deploy') return { ok: false, reason: '目前不是部署階段' };
     if (p.deploy) return { ok: false, reason: '本回合已提交部署' };
     const v = validateDeploy(alloc, p);
     if (!v.ok) return v;

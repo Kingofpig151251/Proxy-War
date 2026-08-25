@@ -28,11 +28,11 @@ describe('Game 狀態機', () => {
     expect(g.finished).toBe(false);
   });
 
-  it('單方面交卡唔會觸發收入；交齊先得', () => {
+  it('單方面交卡不觸發收入；交齊才生效', () => {
     const g = new Game('A', 'B');
     g.beginRoundIfNeeded();
     expect(g.submitCard('blue', { card: 'warBonds' }).ok).toBe(true);
-    // 紅未交：唔可以入部署
+    // 紅未交：不可進入部署
     expect(g.phase()).toBe('cardSelect');
     expect(g.submitDeploy('blue', noAlloc).ok).toBe(false);
   });
@@ -59,7 +59,7 @@ describe('Game 狀態機', () => {
       g,
       { card: 'oilPriceWar' }, // 藍油價戰打紅首都收入
       { card: 'assetFreeze' },
-      { ...noAlloc, industrial: 30 }, // 只可以用未被凍結嘅錢
+      { ...noAlloc, industrial: 30 }, // 只可使用未被凍結的資金
       { ...noAlloc, capital: 20 },
     );
     if (g.controllers.industrial === 'blue') {
@@ -92,14 +92,14 @@ describe('Game 狀態機', () => {
       expect(p.score).toBeGreaterThan(0); // 4 回合必有得分
       expect(p.hand.size).toBeLessThanOrEqual(6);
     }
-    // 卡每張限用一次：用過嘅唔喺手牌
+    // 卡每張限用一次：用過的不在手牌
     expect(g.players.blue.hand.has('warBonds')).toBe(false);
     expect(g.players.blue.hand.has('attritionRaid')).toBe(false);
     expect(g.players.red.hand.has('assetFreeze')).toBe(false);
     expect(g.players.red.hand.has('costImposition')).toBe(false);
 
     // 金錢守恆：終局總財富 = 初始總和 + 外援×8 + 公債 − 部署支出
-    // （部署已支付所以唔計返；公債係負債唔係錢）
+    // （部署已支付故不返還；公債是負債不是現金）
     const totalWealth =
       g.players.blue.treasury + g.players.red.treasury;
     // 兩邊最後都燒光或保留——只驗非負同合理上限
@@ -141,7 +141,7 @@ describe('Game 狀態機', () => {
     expect(s.incomes).toHaveLength(2);
     expect(s.cardsRevealed.map((c) => c.card)).toEqual(['warBonds', 'sanctions']);
     expect(s.settlements.map((e) => e.region)).toEqual([...REGION_ORDER]);
-    // 普通奪取冇 modifier；有效值＝原始投入
+    // 普通奪取無 modifier；有效值＝原始投入
     const ind = s.settlements.find((e) => e.region === 'industrial')!;
     expect(ind.outcome).toBe('capture');
     expect(ind.blueEffective).toBe(50);
