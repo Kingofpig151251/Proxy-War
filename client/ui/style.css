@@ -1,4 +1,11 @@
 /* PROXY WAR v2 — 作戰地圖主題：深底、細網格、硬朗邊框、色彩即資訊 */
+/* 字體：交易所風——數據 IBM Plex Mono（tabular 等寬）、標籤 Oswald 壓縮大寫、中文 Noto Sans TC */
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import '@fontsource/ibm-plex-mono/700.css';
+@import '@fontsource/oswald/400.css';
+@import '@fontsource/oswald/600.css';
+
 :root {
   --bg: #0a0e14;
   --panel: #10161f;
@@ -12,6 +19,8 @@
   --red-dim: rgba(255, 90, 82, 0.12);
   --gold: #e0b03f;
   --green: #46c26e;
+  --font-mono: 'IBM Plex Mono', 'Noto Sans TC', monospace;
+  --font-label: 'Oswald', 'Noto Sans TC', sans-serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -24,6 +33,17 @@ body {
   color: var(--text);
   font-family: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
   min-height: 100vh;
+}
+
+/* 交易所排版原語：數據等寬、標籤壓縮大寫 */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.label-caps {
+  font-family: var(--font-label);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
 }
 
 #root { min-height: 100vh; }
@@ -60,7 +80,10 @@ input:focus { outline: none; border-color: var(--blue); }
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   min-height: 100vh; gap: 20px; padding: 20px;
 }
-.title { font-size: 44px; letter-spacing: 10px; color: var(--text); }
+.title {
+  font-family: var(--font-label);
+  font-size: 46px; letter-spacing: 14px; color: var(--text); font-weight: 600;
+}
 .title .ic { color: var(--gold); margin-right: 6px; }
 .subtitle { color: var(--dim); letter-spacing: 3px; }
 .hint { color: var(--dim); font-size: 12px; }
@@ -100,7 +123,11 @@ input:focus { outline: none; border-color: var(--blue); }
 .invite-row { display: flex; align-items: center; gap: 10px; padding: 4px 0; }
 .invite-row button { width: auto; }
 .lobby-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-.panel h3 { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 15px; }
+.panel h3 {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  font-size: 14px; font-family: var(--font-label);
+  text-transform: uppercase; letter-spacing: 0.1em; color: var(--dim);
+}
 .lobby-list { list-style: none; display: flex; flex-direction: column; gap: 5px; }
 .lobby-list li {
   display: flex; align-items: center; gap: 8px;
@@ -108,9 +135,12 @@ input:focus { outline: none; border-color: var(--blue); }
   font-size: 13px; border-left: 2px solid transparent;
 }
 .lobby-list li.me { border-left-color: var(--blue); }
-.lp-rank { color: var(--gold); font-weight: bold; min-width: 32px; }
+.lp-rank { color: var(--gold); font-weight: bold; min-width: 32px; font-family: var(--font-mono); }
 .lp-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lp-elo { color: var(--gold); font-weight: bold; font-variant-numeric: tabular-nums; }
+.lp-elo {
+  color: var(--gold); font-weight: bold;
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+}
 .lp-status { color: var(--dim); font-size: 12px; }
 .st-playing { color: var(--red); }
 .st-queued { color: var(--gold); }
@@ -128,10 +158,10 @@ input:focus { outline: none; border-color: var(--blue); }
   background: var(--panel); border: 1px solid var(--border);
   border-radius: 4px; padding: 8px 14px;
 }
-.room-code { font-weight: bold; color: var(--gold); letter-spacing: 2px; }
+.room-code { font-weight: bold; color: var(--gold); letter-spacing: 2px; font-family: var(--font-mono); }
 .round-pill {
   background: #1a2230; border-radius: 2px; padding: 3px 12px; font-size: 13px;
-  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
 }
 .round-pill.decisive { background: #4a1d08; color: #ffa657; animation: pulse 1s infinite; }
 @keyframes pulse { 50% { opacity: .65; } }
@@ -140,8 +170,9 @@ input:focus { outline: none; border-color: var(--blue); }
 .phase-stepper { display: flex; gap: 2px; flex: 1; justify-content: center; }
 .ps-step {
   display: flex; align-items: center; gap: 4px;
-  padding: 3px 10px; font-size: 12px; color: var(--dim);
+  padding: 3px 10px; font-size: 11px; color: var(--dim);
   border-bottom: 2px solid transparent;
+  font-family: var(--font-label); text-transform: uppercase; letter-spacing: 0.08em;
 }
 .ps-step.done { color: var(--green); border-bottom-color: var(--green); }
 .ps-step.current {
@@ -160,7 +191,7 @@ input:focus { outline: none; border-color: var(--blue); }
 .pname { font-weight: bold; min-width: 150px; display: inline-flex; align-items: center; gap: 6px; }
 .stat {
   display: inline-flex; align-items: center; gap: 4px;
-  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
 }
 .stat.debt { color: var(--red); }
 .stat.frozen { color: var(--blue); }
@@ -184,13 +215,16 @@ input:focus { outline: none; border-color: var(--blue); }
 .region.ctrl-blue .region-icon { color: var(--blue); }
 .region.ctrl-red .region-icon { color: var(--red); }
 .region-name { font-weight: bold; margin-top: 6px; }
-.region-vp { color: var(--dim); font-size: 12px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.region-vp { color: var(--dim); font-size: 12px; margin-top: 2px; font-family: var(--font-mono); }
 .controller { margin-top: 6px; font-size: 13px; }
 .controller.neutral { color: var(--dim); font-style: italic; }
 
 /* ── 選卡 ── */
 .panel-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
-.res { color: var(--gold); font-weight: bold; font-variant-numeric: tabular-nums; }
+.res {
+  color: var(--gold); font-weight: bold;
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+}
 .res.neg { color: var(--red); }
 .hand { display: flex; gap: 10px; flex-wrap: wrap; }
 .action-card {
@@ -221,18 +255,28 @@ input:focus { outline: none; border-color: var(--blue); }
 .ar-name { width: 140px; display: inline-flex; align-items: center; gap: 4px; }
 .ar-name small { color: var(--dim); margin-left: 4px; }
 .alloc-row input[type=range] { flex: 1; accent-color: var(--gold); }
-.ar-val { width: 60px; text-align: right; font-weight: bold; color: var(--gold); font-variant-numeric: tabular-nums; }
+.ar-val {
+  width: 60px; text-align: right; font-weight: bold; color: var(--gold);
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+}
 .alloc-row button { padding: 2px 8px; font-size: 12px; }
 
 /* ── 戰報／終局 ── */
-.formula-list { list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.formula-list { list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-family: var(--font-mono); }
 .formula-list b { color: var(--gold); }
 .report h3, .waiting h3 { display: flex; align-items: center; gap: 8px; }
 .end-panel { text-align: center; padding: 30px; }
-.end-panel h1 { font-size: 34px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.end-panel h1 {
+  font-size: 34px; margin-bottom: 10px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  font-family: var(--font-label); text-transform: uppercase; letter-spacing: 0.08em;
+}
 .end-panel h1 .ic { color: var(--gold); }
 .reason { color: var(--dim); margin-bottom: 8px; }
-.score-line { font-size: 18px; margin-bottom: 16px; font-variant-numeric: tabular-nums; }
+.score-line {
+  font-size: 18px; margin-bottom: 16px;
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+}
 
 .waiting { text-align: center; padding: 20px; }
 .waiting h3 { justify-content: center; }
