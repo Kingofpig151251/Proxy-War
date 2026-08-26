@@ -52,6 +52,38 @@ describe('AuthService', () => {
   it('假 token 拒絕', () => {
     expect(() => svc.verify('forged.token.here')).toThrow(AuthError);
   });
+
+  it('guestLogin：每次產生唯一 guest_ 帳號，token 可驗證', async () => {
+    const g1 = await svc.guestLogin();
+    const g2 = await svc.guestLogin();
+    expect(g1.user.username.startsWith('guest_')).toBe(true);
+    expect(g2.user.username.startsWith('guest_')).toBe(true);
+    expect(g1.user.username).not.toBe(g2.user.username);
+    expect(svc.verify(g1.token).username).toBe(g1.user.username);
+  });
+
+  it('訪客帳號不出現在排行榜', async () => {
+    await svc.guestLogin();
+    await svc.register('boardhuman', 'password123');
+    const list = await R.top(50);
+    expect(list.some((u) => u.username === 'boardhuman')).toBe(true);
+    for (const row of list) {
+      expect(row.username.startsWith('guest_')).toBe(false);
+    }
+  });
+
+  it('purgeStaleGuests：只清逾齡訪客，真人帳號不動', async () => {
+    // 建一個會被清的舊訪客（直接寫 repo 控制時間）
+    const old = R.create('guest_oldacct', 'password123');
+    void old;
+    const stale = await R.find('guest_oldacct');
+    if (stale) stale.createdAt = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000);
+    await svc.register('realperson', 'password123');
+    const purged = await R.purgeStaleGuests(30 * 24 * 60 * 60 * 1000);
+    expect(purged).toBeGreaterThanOrEqual(1);
+    expect(await R.find('guest_oldacct')).toBeNull();
+    expect(await R.find('realperson')).not.toBeNull();
+  });
 });
 
 describe('ELO 與排行榜', () => {

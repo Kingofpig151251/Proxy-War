@@ -37,6 +37,16 @@ export function apiRouter(auth: AuthService, repo: UserRepo): Router {
     }
   });
 
+  /** 一鍵體驗：自動建立唯一訪客帳號並登入（無需註冊） */
+  r.post('/auth/guest', async (_req: Request, res: Response) => {
+    try {
+      const out = await auth.guestLogin();
+      res.json(out);
+    } catch (e) {
+      sendAuthError(res, e);
+    }
+  });
+
   r.get('/auth/me', (req: Request, res: Response) => {
     const h = req.headers.authorization;
     if (!h?.startsWith('Bearer ')) return res.status(401).json({ error: '未登入' });

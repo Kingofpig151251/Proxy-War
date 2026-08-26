@@ -61,26 +61,14 @@ export function App() {
     }
   };
 
-  /** 一鍵體驗：用演示帳號登入（伺服器預建；失敗則自動註冊） */
+  /** 一鍵體驗：向伺服器索取唯一訪客帳號（guest_ 前綴），免註冊直進大廳 */
   const quickPlay = async () => {
     setNotice('');
     setBusy(true);
     try {
-      let res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: 'demo', password: 'demo12345' }),
-      });
-      if (!res.ok) {
-        // 首次未建：自動註冊演示帳號
-        res = await fetch('/api/auth/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: 'demo', password: 'demo12345' }),
-        });
-      }
+      const res = await fetch('/api/auth/guest', { method: 'POST' });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || '演示帳號不可用');
+      if (!res.ok) throw new Error(data.error || '訪客登入不可用');
       localStorage.setItem('pw_user', data.user.username);
       localStorage.setItem('pw_token', data.token);
       setToken(data.token);

@@ -209,7 +209,8 @@
 | 認證 | 用戶名（3-16 英數底線）+ 密碼（≥8），bcrypt(10) hash 存儲 |
 | Session | JWT HS256，7 日有效，secret 由 `JWT_SECRET` env 提供 |
 | 儲存 | MongoDB `users` 集合（username 唯一索引）＋ `matches` 對局明細；DB 不可用退記憶體模式（遊戲可玩、統計暫緩） |
-| 排行榜 | ELO（K=32，起始 1000，零和）；終局自動入帋勝/敗/和＋ELO 變動＋對局紀錄 |
+| 排行榜 | ELO（K=32，起始 1000，零和）；終局自動入帳勝/敗/和＋ELO 變動＋對局紀錄；一鍵體驗的 `guest_` 前綴帳號不進榜 |
+| 一鍵體驗 | `POST /api/auth/guest`：自動建立唯一訪客帳號（`guest_`＋8 位隨機段），免註冊直進大廳；訪客帳號保留 30 日後由 `purgeStaleGuests` 惰性清理（長於 JWT 7 日有效期，無死 token 窗口） |
 | WS 認證 | 連線後首則訊息帶 token 驗證；房間制玩法不強制登入，僅排行榜需要 |
 
 **模組**：`src/auth/userRepo.ts`（repo + memory fallback）、`src/auth/authService.ts`（register/login/verify JWT）、`src/game/ranking.ts`（eloDeltas + recordMatch）。

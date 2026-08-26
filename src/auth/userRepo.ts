@@ -11,6 +11,9 @@ export interface UserDoc {
   stats: { wins: number; losses: number; draws: number; elo: number };
 }
 
+/** 一鍵體驗產生的訪客帳號前綴（排行榜隱藏、逾齡自動清理） */
+export const GUEST_PREFIX = 'guest_';
+
 export interface MatchRecord {
   playedAt: Date;
   blue: string;
@@ -31,6 +34,8 @@ export interface UserRepo {
     eloDelta: number,
   ): Promise<void>;
   top(n: number): Promise<Pick<UserDoc, 'username' | 'stats'>[]>;
+  /** 清理超過時限的訪客帳號（guest_ 前綴），回傳刪除數 */
+  purgeStaleGuests(olderThanMs: number): Promise<number>;
   /** 對局明細；記憶體模式可選實作 */
   appendMatch?(rec: MatchRecord): Promise<void>;
   mode: 'mongo' | 'memory';
@@ -67,9 +72,21 @@ function makeMemoryRepo(): UserRepo {
     },
     async top(n) {
       return Array.from(users.values())
+        .filter((u) => !u.username.startsWith(GUEST_PREFIX))
         .sort((a, b) => b.stats.elo - a.stats.elo)
         .slice(0, n)
         .map((u) => ({ username: u.username, stats: { ...u.stats } }));
+    },
+    async purgeStaleGuests(olderThanMs) {
+      const cutoff = Date.now() - olderThanMs;
+      let n = 0;
+      for (const [name, u] of users) {
+        if (name.startsWith(GUEST_PREFIX) && u.createdAt.getTime() < cutoff) {
+          users.delete(name);
+          n += 1;
+        }
+      }
+      return n;
     },
     async appendMatch(rec) {
       matches.push(rec);
@@ -104,11 +121,21 @@ function makeMongoRepo(db: Db): UserRepo {
     },
     async top(n) {
       const docs = await col
-        .find({}, { projection: { username: 1, stats: 1 } })
+        .find({ username: { $not: { $regex: `^${GUEST_PREFIX}` } } }, {
+          projection: { username: 1, stats: 1 },
+        })
         .sort({ 'stats.elo': -1 })
         .limit(n)
         .toArray();
       return docs.map((d) => ({ username: d.username, stats: d.stats }));
+    },
+    async purgeStaleGuests(olderThanMs) {
+      const cutoff = new Date(Date.now() - olderThanMs);
+      const res = await col.deleteMany({
+        username: { $regex: `^${GUEST_PREFIX}` },
+        createdAt: { $lt: cutoff },
+      });
+      return res.deletedCount ?? 0;
     },
     async appendMatch(rec) {
       await matches.insertOne(rec);
