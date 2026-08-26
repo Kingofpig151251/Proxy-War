@@ -78,6 +78,8 @@ export function App() {
           <Icon name="xCircle" size={16} /> {(e as Error).message}
         </>,
       );
+    } finally {
+      // 必須重置：登入頁在登出後不會重新掛載，殘留 true 會令按鈕永久禁用
       setBusy(false);
     }
   };
