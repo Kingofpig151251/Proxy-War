@@ -14,7 +14,7 @@ interface LeaderRow {
 
 const STATUS_TEXT = { lobby: '閒置', queued: '排隊中', playing: '對局中' } as const;
 
-export function Lobby({ me }: { me: string }) {
+export function Lobby({ me, onLogout }: { me: string; onLogout: () => void }) {
   const s = useStore();
   const snap = s.lobby;
   const [board, setBoard] = useState<LeaderRow[]>([]);
@@ -51,6 +51,13 @@ export function Lobby({ me }: { me: string }) {
           <Icon name="sword" size={18} /> PROXY WAR
         </span>
         <span className="phase-label">指揮官：{me}</span>
+        <button
+          className="ghost small"
+          onClick={onLogout}
+          title="登出並清除本機憑據"
+        >
+          <Icon name="exit" size={16} /> 登出
+        </button>
         <button
           className={s.queued ? 'primary' : ''}
           onClick={queueToggle}

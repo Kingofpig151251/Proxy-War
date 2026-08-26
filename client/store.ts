@@ -78,6 +78,30 @@ class Store {
     };
   }
 
+  /** 登出：關閉連線、清空狀態與本機憑據，返回登入頁 */
+  logout(): void {
+    if (this.ws) {
+      this.ws.onclose = null;
+      this.ws.close();
+      this.ws = null;
+    }
+    localStorage.removeItem('pw_token');
+    localStorage.removeItem('pw_user');
+    sessionStorage.removeItem('pw_name');
+    this.connected = false;
+    this.connecting = false;
+    this.view = null;
+    this.chat = [];
+    this.error = null;
+    this.screen = 'connecting';
+    this.revealToast = null;
+    this.lobby = null;
+    this.invites = [];
+    this.queued = false;
+    this.me = '';
+    this.emit();
+  }
+
   send(msg: ClientMsg): void {
     if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(msg));
   }

@@ -98,7 +98,7 @@ export function App() {
     return <GameRoom />;
   }
   if (s.screen === 'lobby') {
-    return <Lobby me={s.me} />;
+    return <Lobby me={s.me} onLogout={() => store.logout()} />;
   }
 
   return (

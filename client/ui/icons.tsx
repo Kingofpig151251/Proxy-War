@@ -9,7 +9,7 @@ export type IconName =
   | 'dotBlue' | 'dotRed' | 'scale'
   | 'eye' | 'wifiOff'
   | 'cards' | 'cardSingle' | 'stack' | 'flag' | 'zap'
-  | 'refresh' | 'sparkles' | 'hourglass'
+  | 'refresh' | 'sparkles' | 'hourglass' | 'exit'
   | 'trophy' | 'trendDown'
   | 'check' | 'xCircle' | 'doc' | 'swords' | 'medal';
 
@@ -156,6 +156,13 @@ const PATHS: Record<IconName, ReactElement> = {
     <>
       <circle cx="12" cy="9" r="6" />
       <path d="M8.5 14L7 22l5-3 5 3-1.5-8" />
+    </>
+  ),
+  exit: (
+    <>
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <path d="M16 17l5-5-5-5" />
+      <path d="M21 12H9" />
     </>
   ),
 };
