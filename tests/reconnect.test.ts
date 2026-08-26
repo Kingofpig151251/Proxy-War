@@ -29,6 +29,30 @@ function makeGame() {
   return { room, cb, cr };
 }
 
+/** 極簡假 WebSocket：模擬 ws 套件 EventEmitter 介面 */
+function fakeWebSocket() {
+  const sent: unknown[] = [];
+  const handlers = new Map<string, (data?: unknown) => void>();
+  return {
+    sent,
+    readyState: 1,
+    on(event: string, fn: (data?: unknown) => void) {
+      handlers.set(event, fn);
+      return this;
+    },
+    /** 測試用：直接觸發已掛載的 handler */
+    fire(event: string, data?: unknown) {
+      handlers.get(event)?.(data);
+    },
+    send(msg: string) {
+      sent.push(JSON.parse(msg));
+    },
+    close() {},
+    ping() {},
+    terminate() {},
+  };
+}
+
 const types = (sent: unknown[]) => sent.map((m) => (m as { type: string }).type);
 
 describe('斷線寬限期', () => {
@@ -98,5 +122,58 @@ describe('斷線寬限期', () => {
     expect(view.disconnectGrace).toBeDefined();
     expect(view.disconnectGrace!.seat).toBe('blue');
     expect(view.disconnectGrace!.deadline).toBeGreaterThan(Date.now());
+  });
+
+  it('重連後的連線必須可繼續提交（防 handler 未掛載回歸）', async () => {
+    // 真實 ConnectionHub：驗證重連路徑不會跳過事件處理器掛載
+    const { ConnectionHub } = await import('../src/ws/connection.js');
+    const room = new Room('HUBT');
+    const manager = {
+      get(code: string) {
+        return code === room.code ? room : null;
+      },
+      findReservedSeat(u: string) {
+        if (room.game.finished) return null;
+        const seat = room.reservedSeatFor(u);
+        return seat ? { room, seat } : null;
+      },
+      expireAllGraceTimers() {},
+    };
+    const lobbyStub = {
+      connect() {},
+      setStatus() {},
+      disconnect() {},
+      snapshot: () => ({ players: [], matches: [], queueSize: 0 }),
+    };
+    const hub = new ConnectionHub(
+      manager as never,
+      lobbyStub as never,
+      (token) => ({ username: String(token), elo: 1000 }),
+    );
+
+    // 開局兩人（直接經 Room）
+    const cb = stubConn(101);
+    const cr = stubConn(102);
+    room.addPlayer({ conn: cb, name: 'alice', username: 'alice' });
+    room.addPlayer({ conn: cr, name: 'bob', username: 'bob' });
+
+    // alice 用假 WS 斷線 → 寬限 → 以真 hub attach 重連
+    room.removeConn(101);
+    expect(room.reservedSeatFor('alice')).toBe('blue');
+
+    const wsNew = fakeWebSocket();
+    hub.attach(wsNew as never, 'alice');
+    await new Promise((r) => setTimeout(r, 10));
+    expect(types(wsNew.sent)).toContain('joined');
+
+    // 關鍵斷言：重連後提交訊息必須被處理（收到新 state 而非石沉大海）
+    const before = types(wsNew.sent).filter((t) => t === 'state').length;
+    wsNew.fire(
+      'message',
+      Buffer.from(JSON.stringify({ type: 'submitCard', payload: { card: null } })),
+    );
+    await new Promise((r) => setTimeout(r, 10));
+    const after = types(wsNew.sent).filter((t) => t === 'state').length;
+    expect(after).toBeGreaterThan(before);
   });
 });

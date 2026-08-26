@@ -59,25 +59,7 @@ export class ConnectionHub {
     };
     this.sessions.set(session.id, session);
 
-    // 重連認座：帳號在未完成對局中有被保留的座位（寬限期內）即自動歸位
-    const target = this.manager.findReservedSeat(username);
-    if (target) {
-      // 掛進大廳名單（狀態=對局中）：保持多開計數正確，之後離房才不會從名單消失
-      this.lobby.connect(username, elo, session.id);
-      this.lobby.setStatus(username, 'playing');
-      target.room.reattachPlayer(target.seat, {
-        conn: wrapConn(session),
-        name: username,
-        username,
-      });
-      session.roomCode = target.room.code;
-      this.send(session, { type: 'joined', payload: { code: target.room.code, seat: target.seat } });
-      return;
-    }
-
-    // 同 username 多開：以 session 為單位掛進大廳名單
-    this.lobby.connect(session.username, session.elo, session.id);
-
+    // 事件處理器一律先行掛載（含重連路徑——不可提前 return 跳過）
     let timestamps: number[] = [];
     ws.on('pong', () => {
       session.alive = true;
@@ -121,6 +103,25 @@ export class ConnectionHub {
       this.lobby.disconnect(session.username, session.id);
       this.broadcastLobby();
     });
+
+    // ── 重連認座：帳號在未完成對局中有被保留的座位（寬限期內）即自動歸位 ──
+    const target = this.manager.findReservedSeat(username);
+    if (target) {
+      // 掛進大廳名單（狀態=對局中）：保持多開計數正確，之後離房才不會從名單消失
+      this.lobby.connect(username, elo, session.id);
+      this.lobby.setStatus(username, 'playing');
+      target.room.reattachPlayer(target.seat, {
+        conn: wrapConn(session),
+        name: username,
+        username,
+      });
+      session.roomCode = target.room.code;
+      this.send(session, { type: 'joined', payload: { code: target.room.code, seat: target.seat } });
+      return;
+    }
+
+    // 同 username 多開：以 session 為單位掛進大廳名單
+    this.lobby.connect(session.username, session.elo, session.id);
 
     // 認證通過：直接送大廳快照
     this.send(session, { type: 'lobby', payload: { snapshot: this.lobby.snapshot() } });
