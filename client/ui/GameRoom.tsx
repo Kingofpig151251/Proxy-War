@@ -199,10 +199,10 @@ function PlayerBar({
             <Icon name="warn" size={14} /> 斷線
           </span>
         )}
-        {v.disconnectGrace?.seat === p.id && (
+        {grace?.seat === p.id && (
           <span className="grace-pill">
             <Icon name="hourglass" size={14} />
-            <GraceCountdown deadline={v.disconnectGrace.deadline} />
+            <GraceCountdown deadline={grace.deadline} />
           </span>
         )}
       </span>

@@ -11,11 +11,13 @@
     "dev": "tsx watch src/server.ts",
     "build:server": "tsc -p tsconfig.json",
     "build:client": "vite build",
-    "build": "npm run build:server && npm run build:client",
+    "build": "npm run build:server && npm run typecheck:client && npm run build:client",
     "start": "node dist/src/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "typecheck:client": "tsc -p client/tsconfig.json",
+    "smoke:frontend": "node scripts/render-smoke.mjs && node scripts/smoke-frontend.mjs"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.3.0",
