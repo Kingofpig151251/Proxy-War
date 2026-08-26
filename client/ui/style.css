@@ -294,3 +294,21 @@ input:focus { outline: none; border-color: var(--blue); }
   .hand { justify-content: center; }
   .phase-stepper { flex-wrap: wrap; }
 }
+
+/* ── 斷線寬限倒數 ─────────────────────────────── */
+.grace-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  font-size: 12px;
+  border-radius: 2px;
+  animation: gracePulse 2s ease-in-out infinite;
+}
+@keyframes gracePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}

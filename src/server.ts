@@ -75,8 +75,9 @@ async function main(): Promise<void> {
     hub.attach(ws, url.searchParams.get('token'));
   });
 
-  // 心跳：30s 清死連線；房間清理由 listSummary 惰性觸發＋定時兜底
+  // 心跳：30s 清死連線＋檢查重連寬限期；房間清理由 listSummary 惰性觸發＋定時兜底
   setInterval(() => hub.heartbeat(), 30_000).unref();
+  setInterval(() => manager.expireAllGraceTimers(), 5_000).unref();
   setInterval(() => manager.cleanupEmpty(), 60_000).unref();
 
   server.listen(PORT, () => {

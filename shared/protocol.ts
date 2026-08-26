@@ -106,6 +106,8 @@ export interface GameStateView {
   youSubmittedDeploy?: boolean;
   /** 消耗突襲需要目標區 */
   pendingCardNeedsTarget?: boolean;
+  /** 對局中一方斷線進入重連寬限期（UI 顯示倒數） */
+  disconnectGrace?: { seat: 'blue' | 'red'; deadline: number };
   lastRound?: RoundSummary;
   winner?: string | null; // 終局：seat 或 null=真和局
   winReason?: string;
@@ -146,7 +148,8 @@ export type ClientMsg =
   | { type: 'chat'; payload: { text: string } }
   | { type: 'submitCard'; payload: { card: CardId | null; target?: RegionId } }
   | { type: 'submitDeploy'; payload: { allocations: Record<string, number> } }
-  | { type: 'playAgain'; payload: Record<string, never> };
+  | { type: 'playAgain'; payload: Record<string, never> }
+  | { type: 'leaveGame'; payload: Record<string, never> };
 
 // ── 伺服器→客戶端 ─────────────────────────────────────
 export type ServerMsg =
@@ -155,6 +158,7 @@ export type ServerMsg =
   | { type: 'inviteResult'; payload: { id: string; accepted: boolean } }
   | { type: 'joined'; payload: { code: string; seat: 'blue' | 'red' } }
   | { type: 'spectating'; payload: { code: string } }
+  | { type: 'reconnected'; payload: { seat: 'blue' | 'red'; name: string } }
   | { type: 'error'; payload: { message: string } }
   | { type: 'state'; payload: { view: GameStateView } }
   | { type: 'phaseChanged'; payload: { phase: Phase; round: number } }

@@ -58,6 +58,23 @@ export class ConnectionHub {
       alive: true,
     };
     this.sessions.set(session.id, session);
+
+    // 重連認座：帳號在未完成對局中有被保留的座位（寬限期內）即自動歸位
+    const target = this.manager.findReservedSeat(username);
+    if (target) {
+      // 掛進大廳名單（狀態=對局中）：保持多開計數正確，之後離房才不會從名單消失
+      this.lobby.connect(username, elo, session.id);
+      this.lobby.setStatus(username, 'playing');
+      target.room.reattachPlayer(target.seat, {
+        conn: wrapConn(session),
+        name: username,
+        username,
+      });
+      session.roomCode = target.room.code;
+      this.send(session, { type: 'joined', payload: { code: target.room.code, seat: target.seat } });
+      return;
+    }
+
     // 同 username 多開：以 session 為單位掛進大廳名單
     this.lobby.connect(session.username, session.elo, session.id);
 
@@ -287,6 +304,19 @@ export class ConnectionHub {
             room.rematch();
             this.broadcastLobby();
           }
+          break;
+        }
+        case 'leaveGame': {
+          // 主動棄賽（§3.1）：不進寬限期，即時判負；旁觀者／終局者僅脫離房間
+          const room = s.roomCode ? this.manager.get(s.roomCode) : null;
+          if (!room) return;
+          const seat = room.seatOf(s.id);
+          if (!room.game.finished) {
+            if (seat) room.resignBySeat(seat);
+            room.removeConn(s.id);
+          }
+          s.roomCode = null;
+          this.broadcastLobby();
           break;
         }
         default:

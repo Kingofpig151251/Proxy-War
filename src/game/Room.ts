@@ -32,6 +32,10 @@ export interface Member {
 
 interface Slot {
   member: Member | null;
+  /** 斷線寬限期：保留的帳號身份（重連時按此認座） */
+  reservedUsername: string | null;
+  /** 座位被保留的期限（毫秒時間戳）；null=非寬限期 */
+  reservedUntil: number | null;
 }
 
 function emptyViewBase(code: string) {
@@ -41,14 +45,16 @@ function emptyViewBase(code: string) {
 export class Room {
   readonly code: string;
   game: Game;
-  blue: Slot = { member: null };
-  red: Slot = { member: null };
+  blue: Slot = { member: null, reservedUsername: null, reservedUntil: null };
+  red: Slot = { member: null, reservedUsername: null, reservedUntil: null };
   spectators: Member[] = [];
   createdAt = Date.now();
   /** 對局結束時由 manager 注入（含 repo）；統計失敗不影響遊戲 */
   onGameOver?: (room: Room) => void;
   private incomeAppliedForRound = -1;
   private chatLog: { from: string; text: string; ts: number }[] = [];
+  /** 防止 gameOver 廣播＋統計重複（settle 與棄賽路徑互斥） */
+  private overAnnounced = false;
 
   constructor(code: string) {
     this.code = code;
@@ -74,6 +80,22 @@ export class Room {
     return null;
   }
 
+  /** 該帳號是否有被保留的座位（寬限期內），有則回傳座位 */
+  reservedSeatFor(username: string): Seat | null {
+    for (const seat of ['blue', 'red'] as const) {
+      const slot = this[seat];
+      if (
+        !slot.member &&
+        slot.reservedUsername === username &&
+        slot.reservedUntil !== null &&
+        Date.now() < slot.reservedUntil
+      ) {
+        return seat;
+      }
+    }
+    return null;
+  }
+
   addPlayer(member: Member): Seat | null {
     if (!this.blue.member) {
       this.blue.member = member;
@@ -88,6 +110,19 @@ export class Room {
     return null;
   }
 
+  /** 重連：把成員放回其被保留的座位（不檢查空位，調用方先以 reservedSeatFor 確認） */
+  reattachPlayer(seat: Seat, member: Member): void {
+    const slot = this[seat];
+    slot.member = member;
+    slot.reservedUsername = null;
+    slot.reservedUntil = null;
+    this.broadcast({
+      type: 'reconnected',
+      payload: { seat, name: member.name },
+    });
+    this.pushState();
+  }
+
   addSpectator(member: Member): boolean {
     if (this.spectators.length >= CONFIG.rooms.maxSpectators) return false;
     this.spectators.push(member);
@@ -95,33 +130,88 @@ export class Room {
   }
 
   removeConn(connId: number): void {
-    const bye = (slot: Slot): boolean => {
+    const detach = (slot: Slot): boolean => {
       if (slot.member?.conn.id === connId) {
         slot.member = null;
         return true;
       }
       return false;
     };
-    const wasPlayer = bye(this.blue) || bye(this.red);
+    const wasPlayer = detach(this.blue) || detach(this.red);
     this.spectators = this.spectators.filter((s) => s.conn.id !== connId);
     if (wasPlayer && !this.game.finished) {
-      // 斷線＝棄賽判負（§3.1）
-      const loserSeat = this.blue.member === null && this.red.member !== null ? null : null;
-      void loserSeat;
-      this.resignByDisconnect();
+      // 對局中斷線：進入重連寬限期（§3.1），期滿未歸才判負
+      const gone =
+        this.blue.member === null && this.blue.reservedUsername === null
+          ? 'blue'
+          : this.red.member === null && this.red.reservedUsername === null
+            ? 'red'
+            : null;
+      if (gone) this.startGrace(gone);
     }
   }
 
-  private resignByDisconnect(): void {
+  /** 開始斷線寬限期：保留座位與帳號，對手收到倒數通知 */
+  private startGrace(seat: Seat): void {
+    const slot = this[seat];
+    slot.reservedUsername = this.game.players[seat].name;
+    slot.reservedUntil = Date.now() + CONFIG.rooms.reconnectGraceMs;
+    this.pushState();
+  }
+
+  /** 主動棄賽（leaveGame）：不進寬限期，即時判負 */
+  resignBySeat(seat: Seat): void {
     const g = this.game;
     if (g.finished) return;
-    // 哪一方離開即哪一方判負：檢查兩個 slot
-    const blueGone = this.blue.member === null;
-    const redGone = this.red.member === null;
-    if (blueGone === redGone) return; // 無人離開或雙方皆離開——不判定
     g.finished = true;
-    g.winner = blueGone ? 'red' : 'blue';
-    g.winReason = '對手中斷線，棄賽判負';
+    g.winner = seat === 'blue' ? 'red' : 'blue';
+    g.winReason = `${g.players[seat].name} 棄賽判負`;
+    this.pushState();
+    this.announceOver();
+  }
+
+  /** 終局廣播＋統計入帳（棄賽／寬限逾時路徑；與 settle() 的正常終局互斥） */
+  private announceOver(): void {
+    if (this.overAnnounced) return;
+    this.overAnnounced = true;
+    this.broadcast({
+      type: 'gameOver',
+      payload: { winner: this.game.winner, reason: this.game.winReason },
+    });
+    this.onGameOver?.(this);
+  }
+
+  /** 心跳驅動：所有房間寬限期檢查，期滿未歸判負 */
+  expireGraceIfNeeded(): void {
+    const expired = (['blue', 'red'] as const).filter((seat) => {
+      const s = this[seat];
+      return (
+        !s.member &&
+        s.reservedUntil !== null &&
+        s.reservedUsername !== null &&
+        Date.now() >= s.reservedUntil
+      );
+    });
+    for (const seat of expired) {
+      const seatName = this.game.players[seat].name;
+      this[seat].reservedUsername = null;
+      this[seat].reservedUntil = null;
+      if (!this.game.finished) {
+        this.game.finished = true;
+        this.game.winner = seat === 'blue' ? 'red' : 'blue';
+        this.game.winReason = `${seatName} 中斷線逾時，棄賽判負`;
+      }
+    }
+    if (expired.length > 0) {
+      this.pushState();
+      this.announceOver();
+    }
+  }
+
+  /** 測試輔助：把座位寬限撥為已到期（模擬時間流逝） */
+  forceExpireForTest(seat: Seat): void {
+    const s = this[seat];
+    if (s.reservedUntil !== null) s.reservedUntil = Date.now() - 1;
   }
 
   chat(from: string, text: string): void {
@@ -189,11 +279,7 @@ export class Room {
     this.pushState();
 
     if (this.game.finished) {
-      this.broadcast({
-        type: 'gameOver',
-        payload: { winner: this.game.winner, reason: this.game.winReason },
-      });
-      this.onGameOver?.(this);
+      this.announceOver();
     }
   }
 
@@ -204,16 +290,27 @@ export class Room {
     this.game = new Game(bn, rn);
     this.game.beginRoundIfNeeded();
     this.incomeAppliedForRound = -1;
+    this.overAnnounced = false;
     this.broadcast({ type: 'state', payload: { view: this.viewFor(null) } });
   }
 
-  // ── 視圖 ────────────────────────────────────────────
+  // ── 視圖 ────────────────────────────────────────
   phaseLabel(): Phase {
     const g = this.game;
     if (g.finished) return 'end';
     if (!g.bothCardsIn()) return 'cardSelect';
     if (!g.bothDeploysIn()) return 'deploy';
     return 'settlement';
+  }
+
+  /** 寬限期資訊（無則 undefined） */
+  private graceInfo(): { seat: 'blue' | 'red'; deadline: number } | undefined {
+    for (const seat of ['blue', 'red'] as const) {
+      if (this[seat].reservedUntil !== null && this[seat].reservedUsername !== null) {
+        return { seat, deadline: this[seat].reservedUntil! };
+      }
+    }
+    return undefined;
   }
 
   viewFor(connId: number | null): GameStateView {
@@ -250,6 +347,7 @@ export class Room {
       youSubmittedCard: you ? you.cardPlay != null : undefined,
       youSubmittedDeploy: you ? you.deploy != null : undefined,
       pendingCardNeedsTarget: false,
+      disconnectGrace: this.graceInfo(),
       lastRound: g.summary ?? undefined,
       winner: g.finished ? g.winner : undefined,
       winReason: g.winReason || undefined,
@@ -315,6 +413,23 @@ export class RoomManager {
 
   get(code: string): Room | null {
     return this.rooms.get(code.toUpperCase()) ?? null;
+  }
+
+  /** 找出帳號在寬限期內被保留的座位（用於斷線重連） */
+  findReservedSeat(username: string): { room: Room; seat: 'blue' | 'red' } | null {
+    for (const room of this.rooms.values()) {
+      if (room.game.finished) continue;
+      const seat = room.reservedSeatFor(username);
+      if (seat) return { room, seat };
+    }
+    return null;
+  }
+
+  /** 心跳驅動：所有房間寬限期檢查，期滿未歸判負 */
+  expireAllGraceTimers(): void {
+    for (const room of this.rooms.values()) {
+      room.expireGraceIfNeeded();
+    }
   }
 
   cleanupEmpty(): void {

@@ -64,14 +64,20 @@ export function GameRoom() {
         >
           <Icon name="refresh" size={16} /> 再來一場
         </button>
-        <button className="ghost small" onClick={() => location.reload()}>
+        <button
+          className="ghost small"
+          onClick={() => {
+            store.send({ type: 'leaveGame', payload: {} });
+            setTimeout(() => location.reload(), 150);
+          }}
+        >
           離開
         </button>
       </header>
 
-      <PlayerBar p={red} you={v.yourSeat === 'red'} />
+      <PlayerBar p={red} you={v.yourSeat === 'red'} grace={v.disconnectGrace} />
       <Regions v={v} />
-      <PlayerBar p={blue} you={v.yourSeat === 'blue'} />
+      <PlayerBar p={blue} you={v.yourSeat === 'blue'} grace={v.disconnectGrace} />
       <ActionPanel v={v} />
       {v.yourSeat === 'spectator' ? (
         <div className="spectator-badge">
@@ -82,6 +88,19 @@ export function GameRoom() {
       )}
     </div>
   );
+}
+
+/** 寬限倒數：每秒跳動的剩余時間（mm:ss） */
+function GraceCountdown({ deadline }: { deadline: number }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const iv = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(iv);
+  }, []);
+  const left = Math.max(0, Math.ceil((deadline - now) / 1000));
+  const mm = String(Math.floor(left / 60)).padStart(2, '0');
+  const ss = String(left % 60).padStart(2, '0');
+  return <span className="num">{`${mm}:${ss}`}</span>;
 }
 
 function PhaseStepper({ phase, round }: { phase: Phase; round: number }) {
@@ -158,7 +177,15 @@ function RegionCell({
   );
 }
 
-function PlayerBar({ p, you }: { p: PlayerPublic; you: boolean }) {
+function PlayerBar({
+  p,
+  you,
+  grace,
+}: {
+  p: PlayerPublic;
+  you: boolean;
+  grace?: { seat: 'blue' | 'red'; deadline: number };
+}) {
   const treasury = useCountUp(p.treasury);
   const score = useCountUp(p.score);
   return (
@@ -170,6 +197,12 @@ function PlayerBar({ p, you }: { p: PlayerPublic; you: boolean }) {
           <span className="dc-warn">
             {' '}
             <Icon name="warn" size={14} /> 斷線
+          </span>
+        )}
+        {v.disconnectGrace?.seat === p.id && (
+          <span className="grace-pill">
+            <Icon name="hourglass" size={14} />
+            <GraceCountdown deadline={v.disconnectGrace.deadline} />
           </span>
         )}
       </span>

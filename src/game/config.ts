@@ -21,7 +21,7 @@ export const CONFIG = {
   costImposition: { rate: 0.2 },
   attritionRaid: { multiplier: 1.5 },
 
-  rooms: { max: 50, maxSpectators: 10, codeLen: 4 },
+  rooms: { max: 50, maxSpectators: 10, codeLen: 4, reconnectGraceMs: 90_000 },
 } as const;
 
 export const REGIONS: Record<RegionId, RegionDef> = {
